@@ -1,0 +1,178 @@
+diff --git a/pandrator/web/audio_assembly.py b/pandrator/web/audio_assembly.py
+index 626f2af..2e66d8f 100644
+--- a/pandrator/web/audio_assembly.py
++++ b/pandrator/web/audio_assembly.py
+@@ -335,6 +335,113 @@ def _normalize_part(
+     run_media_process(command, cancel_event=cancel_event)
+ 
+ 
++_ROOM_TONE_CACHE: dict[tuple[object, ...], bytes] = {}
++
++
++def _room_tone_pcm(writer: wave.Wave_write) -> bytes:
++    import json
++    import math
++    import sys
++    from array import array
++
++    configured = os.environ.get("PANDRATOR_ROOM_TONE_CONFIG")
++    config_path = (
++        Path(configured).expanduser()
++        if configured
++        else Path(__file__).resolve().parents[2] / "roomtone.json"
++    )
++
++    if not config_path.is_file():
++        return b""
++
++    try:
++        config = json.loads(config_path.read_text())
++    except Exception:
++        return b""
++
++    if not bool(config.get("enabled", False)):
++        return b""
++
++    wav_value = str(config.get("wav", "roomtone_it.wav")).strip()
++    wav_path = Path(wav_value).expanduser()
++
++    if not wav_path.is_absolute():
++        wav_path = config_path.parent / wav_path
++
++    if not wav_path.is_file():
++        return b""
++
++    try:
++        source_dbfs = float(config.get("source_dbfs", -58))
++        target_dbfs = float(config.get("level_dbfs", -58))
++    except (TypeError, ValueError):
++        return b""
++
++    target_dbfs = max(-80.0, min(-30.0, target_dbfs))
++
++    rate = int(getattr(writer, "_framerate", 0) or 0)
++    channels = int(getattr(writer, "_nchannels", 0) or 0)
++    width = int(getattr(writer, "_sampwidth", 0) or 0)
++
++    try:
++        key = (
++            str(wav_path),
++            wav_path.stat().st_mtime_ns,
++            config_path.stat().st_mtime_ns,
++            source_dbfs,
++            target_dbfs,
++            rate,
++            channels,
++            width,
++        )
++    except OSError:
++        return b""
++
++    cached = _ROOM_TONE_CACHE.get(key)
++    if cached is not None:
++        return cached
++
++    try:
++        with wave.open(str(wav_path), "rb") as reader:
++            if (
++                reader.getcomptype() != "NONE"
++                or reader.getframerate() != rate
++                or reader.getnchannels() != channels
++                or reader.getsampwidth() != width
++            ):
++                return b""
++
++            pcm = reader.readframes(reader.getnframes())
++
++    except (EOFError, OSError, wave.Error):
++        return b""
++
++    # Il nostro assembler lavora in PCM 16 bit.
++    if width != 2:
++        return b""
++
++    gain = math.pow(10.0, (target_dbfs - source_dbfs) / 20.0)
++
++    if abs(gain - 1.0) > 1e-6:
++        samples = array("h")
++        samples.frombytes(pcm)
++
++        if sys.byteorder != "little":
++            samples.byteswap()
++
++        for i, sample in enumerate(samples):
++            value = round(sample * gain)
++            samples[i] = max(-32768, min(32767, value))
++
++        if sys.byteorder != "little":
++            samples.byteswap()
++
++        pcm = samples.tobytes()
++
++    _ROOM_TONE_CACHE[key] = pcm
++    return pcm
++
++
+ def _write_silence(
+     writer: wave.Wave_write,
+     frame_count: int,
+@@ -343,12 +450,57 @@ def _write_silence(
+     cancel_event: threading.Event | None,
+ ) -> None:
+     remaining = max(0, int(frame_count))
+-    zero_chunk = b"\0" * (min(PCM_COPY_FRAMES, max(1, remaining)) * bytes_per_frame)
++    if not remaining:
++        return
++
++    tone = _room_tone_pcm(writer)
++
++    # Fallback sicuro al comportamento originale.
++    if not tone:
++        zero_chunk = b"\0" * (
++            min(PCM_COPY_FRAMES, max(1, remaining)) * bytes_per_frame
++        )
++
++        while remaining:
++            if cancel_event is not None and cancel_event.is_set():
++                raise MediaProcessCancelled("Audio assembly was canceled.")
++
++            count = min(PCM_COPY_FRAMES, remaining)
++            writer.writeframesraw(zero_chunk[: count * bytes_per_frame])
++            remaining -= count
++
++        return
++
++    tone_frames = len(tone) // bytes_per_frame
++    if tone_frames <= 0:
++        return
++
++    cursor = writer.tell() % tone_frames
++
+     while remaining:
+         if cancel_event is not None and cancel_event.is_set():
+             raise MediaProcessCancelled("Audio assembly was canceled.")
++
+         count = min(PCM_COPY_FRAMES, remaining)
+-        writer.writeframesraw(zero_chunk[: count * bytes_per_frame])
++        output = bytearray(count * bytes_per_frame)
++
++        written = 0
++
++        while written < count:
++            take = min(count - written, tone_frames - cursor)
++
++            src_start = cursor * bytes_per_frame
++            src_end = src_start + take * bytes_per_frame
++
++            dst_start = written * bytes_per_frame
++            dst_end = dst_start + take * bytes_per_frame
++
++            output[dst_start:dst_end] = tone[src_start:src_end]
++
++            written += take
++            cursor = (cursor + take) % tone_frames
++
++        writer.writeframesraw(output)
+         remaining -= count
+ 
+ 

@@ -1,0 +1,6 @@
+{
+  "enabled": true,
+  "wav": "roomtone_it.wav",
+  "source_dbfs": -58,
+  "level_dbfs": -62
+}

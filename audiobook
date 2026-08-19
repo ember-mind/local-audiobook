@@ -1,0 +1,537 @@
+#!/bin/bash
+
+set -u
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+
+PANDRATOR_HOME="${PANDRATOR_HOME:-$HOME/src/Pandrator}"
+QWEN_HOME="${QWEN_HOME:-$HOME/src/qwen3-tts-official}"
+
+PANDRATOR_PY="$PANDRATOR_HOME/.venv/bin/python"
+QWEN_PY="$QWEN_HOME/.venv/bin/python"
+
+QWEN_DIR="$ROOT/qwen"
+
+RUN_DIR="$ROOT/run"
+LOG_DIR="$ROOT/logs"
+
+ROOMTONE_CONFIG="$ROOT/config/roomtone.json"
+
+QWEN_PID="$RUN_DIR/qwen.pid"
+SERVER_PID="$RUN_DIR/pandrator-server.pid"
+WORKER_PID="$RUN_DIR/pandrator-worker.pid"
+
+QWEN_LOG="$LOG_DIR/qwen.log"
+SERVER_LOG="$LOG_DIR/pandrator-server.log"
+WORKER_LOG="$LOG_DIR/pandrator-worker.log"
+
+mkdir -p "$RUN_DIR" "$LOG_DIR"
+
+
+die() {
+  echo "✗ $*" >&2
+  exit 1
+}
+
+
+pid_alive() {
+  [ -f "$1" ] || return 1
+
+  pid="$(cat "$1" 2>/dev/null || true)"
+
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" 2>/dev/null
+}
+
+
+port_busy() {
+  lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1
+}
+
+
+wait_for_url() {
+  url="$1"
+  attempts="$2"
+
+  i=0
+  while [ "$i" -lt "$attempts" ]; do
+    if curl -fsS "$url" >/dev/null 2>&1; then
+      return 0
+    fi
+
+    sleep 1
+    i=$((i + 1))
+  done
+
+  return 1
+}
+
+
+check_installation() {
+  [ -x "$PANDRATOR_PY" ] ||
+    die "Pandrator Python non trovato: $PANDRATOR_PY"
+
+  [ -x "$QWEN_PY" ] ||
+    die "Qwen Python non trovato: $QWEN_PY"
+
+  [ -f "$QWEN_DIR/qwen_pandrator_server.py" ] ||
+    die "Adapter Qwen non trovato."
+
+  [ -f "$QWEN_DIR/reference_it.wav" ] ||
+    die "Reference voice non trovata."
+
+  [ -f "$ROOMTONE_CONFIG" ] ||
+    die "Configurazione room tone non trovata."
+}
+
+
+start_qwen() {
+  if pid_alive "$QWEN_PID"; then
+    echo "✓ Qwen è già avviato"
+    return
+  fi
+
+  rm -f "$QWEN_PID"
+
+  if port_busy 8042; then
+    die "La porta 8042 è già occupata da un processo non gestito da audiobook."
+  fi
+
+  echo "→ Avvio Qwen3-TTS..."
+
+  (
+    cd "$QWEN_DIR" || exit 1
+
+    nohup "$QWEN_PY" -m uvicorn \
+      qwen_pandrator_server:app \
+      --host 127.0.0.1 \
+      --port 8042 \
+      >"$QWEN_LOG" 2>&1 &
+
+    echo $! > "$QWEN_PID"
+  )
+
+  echo "  Caricamento modello..."
+
+  if wait_for_url "http://127.0.0.1:8042/readyz" 180; then
+    echo "✓ Qwen pronto"
+  else
+    echo
+    echo "Ultime righe di $QWEN_LOG:"
+    tail -n 20 "$QWEN_LOG" 2>/dev/null || true
+    die "Qwen non è diventato ready."
+  fi
+}
+
+
+start_server() {
+  if pid_alive "$SERVER_PID"; then
+    echo "✓ Pandrator server è già avviato"
+    return
+  fi
+
+  rm -f "$SERVER_PID"
+
+  if port_busy 8097; then
+    die "La porta 8097 è già occupata da un processo non gestito da audiobook."
+  fi
+
+  echo "→ Avvio Pandrator server..."
+
+  (
+    cd "$PANDRATOR_HOME" || exit 1
+
+    PANDRATOR_ROOM_TONE_CONFIG="$ROOMTONE_CONFIG" \
+    nohup "$PANDRATOR_PY" -m pandrator serve \
+      >"$SERVER_LOG" 2>&1 &
+
+    echo $! > "$SERVER_PID"
+  )
+
+  i=0
+  while [ "$i" -lt 30 ]; do
+    if port_busy 8097; then
+      echo "✓ Pandrator server pronto"
+      return
+    fi
+
+    sleep 1
+    i=$((i + 1))
+  done
+
+  echo
+  tail -n 20 "$SERVER_LOG" 2>/dev/null || true
+  die "Pandrator server non è partito."
+}
+
+
+start_worker() {
+  if pid_alive "$WORKER_PID"; then
+    echo "✓ Pandrator worker è già avviato"
+    return
+  fi
+
+  rm -f "$WORKER_PID"
+
+  echo "→ Avvio Pandrator worker..."
+
+  (
+    cd "$PANDRATOR_HOME" || exit 1
+
+    PANDRATOR_ROOM_TONE_CONFIG="$ROOMTONE_CONFIG" \
+    nohup "$PANDRATOR_PY" -m pandrator worker \
+      >"$WORKER_LOG" 2>&1 &
+
+    echo $! > "$WORKER_PID"
+  )
+
+  sleep 2
+
+  if pid_alive "$WORKER_PID"; then
+    echo "✓ Pandrator worker pronto"
+  else
+    echo
+    tail -n 20 "$WORKER_LOG" 2>/dev/null || true
+    die "Pandrator worker si è fermato durante l'avvio."
+  fi
+}
+
+
+stop_pid() {
+  name="$1"
+  file="$2"
+
+  if ! pid_alive "$file"; then
+    rm -f "$file"
+    echo "○ $name non era avviato"
+    return
+  fi
+
+  pid="$(cat "$file")"
+
+  echo "→ Arresto $name..."
+
+  kill "$pid" 2>/dev/null || true
+
+  i=0
+  while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 10 ]; do
+    sleep 1
+    i=$((i + 1))
+  done
+
+  if kill -0 "$pid" 2>/dev/null; then
+    kill -9 "$pid" 2>/dev/null || true
+  fi
+
+  rm -f "$file"
+
+  echo "✓ $name fermato"
+}
+
+
+status_line() {
+  name="$1"
+  pidfile="$2"
+
+  if pid_alive "$pidfile"; then
+    echo "✓ $name"
+  else
+    echo "○ $name"
+  fi
+}
+
+
+roomtone() {
+  value="${1:-status}"
+
+  python3 - "$ROOMTONE_CONFIG" "$value" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+value = sys.argv[2]
+
+config = json.loads(path.read_text())
+
+if value == "status":
+    if config.get("enabled"):
+        print(f"Room tone: {config.get('level_dbfs', -58)} dBFS")
+    else:
+        print("Room tone: OFF")
+    raise SystemExit(0)
+
+if value == "off":
+    config["enabled"] = False
+
+elif value in {"-62", "-58", "-54"}:
+    config["enabled"] = True
+    config["level_dbfs"] = int(value)
+
+else:
+    raise SystemExit(
+        "Usa: audiobook roomtone off|-62|-58|-54|status"
+    )
+
+path.write_text(json.dumps(config, indent=2) + "\n")
+
+if config.get("enabled"):
+    print(f"✓ Room tone: {config['level_dbfs']} dBFS")
+else:
+    print("✓ Room tone: OFF")
+PY
+}
+
+
+show_status() {
+  echo
+  echo "Local Audiobook"
+  echo "───────────────"
+
+  if curl -fsS http://127.0.0.1:8042/readyz >/dev/null 2>&1; then
+    echo "✓ Qwen3-TTS       ready"
+  elif port_busy 8042; then
+    echo "… Qwen3-TTS       loading"
+  else
+    echo "○ Qwen3-TTS       stopped"
+  fi
+
+  if port_busy 8097; then
+    echo "✓ Pandrator       http://127.0.0.1:8097"
+  else
+    echo "○ Pandrator       stopped"
+  fi
+
+  if pid_alive "$WORKER_PID"; then
+    echo "✓ Worker           running"
+  else
+    echo "○ Worker           stopped"
+  fi
+
+  printf "✓ "
+  roomtone status
+
+  echo
+}
+
+
+run_doctor() {
+  errors=0
+
+  ok() {
+    echo "✓ $*"
+  }
+
+  fail() {
+    echo "✗ $*"
+    errors=$((errors + 1))
+  }
+
+  echo
+  echo "Local Audiobook Doctor"
+  echo "──────────────────────"
+
+  if [ -d "$PANDRATOR_HOME" ]; then
+    ok "Pandrator directory"
+  else
+    fail "Pandrator directory mancante: $PANDRATOR_HOME"
+  fi
+
+  if [ -x "$PANDRATOR_PY" ]; then
+    version="$("$PANDRATOR_PY" --version 2>&1)"
+    ok "Pandrator Python · $version"
+  else
+    fail "Pandrator virtualenv rotto o mancante"
+  fi
+
+  if [ -x "$PANDRATOR_PY" ] &&
+     "$PANDRATOR_PY" -c "import pandrator" >/dev/null 2>&1; then
+    ok "Pandrator import"
+  else
+    fail "Pandrator non importabile"
+  fi
+
+  if [ -d "$QWEN_HOME" ]; then
+    ok "Qwen directory"
+  else
+    fail "Qwen directory mancante: $QWEN_HOME"
+  fi
+
+  if [ -x "$QWEN_PY" ]; then
+    version="$("$QWEN_PY" --version 2>&1)"
+    ok "Qwen Python · $version"
+  else
+    fail "Qwen virtualenv rotto o mancante"
+  fi
+
+  if [ -x "$QWEN_PY" ] &&
+     "$QWEN_PY" -c "import torch, qwen_tts" >/dev/null 2>&1; then
+    ok "torch + qwen_tts"
+  else
+    fail "torch/qwen_tts non importabili"
+  fi
+
+  if [ -x "$QWEN_PY" ]; then
+    mps="$("$QWEN_PY" - <<'PYQ' 2>/dev/null
+import torch
+print("yes" if torch.backends.mps.is_available() else "no")
+PYQ
+)"
+    if [ "$mps" = "yes" ]; then
+      ok "Apple MPS disponibile"
+    else
+      fail "Apple MPS non disponibile"
+    fi
+  fi
+
+  if [ -f "$QWEN_DIR/qwen_pandrator_server.py" ]; then
+    ok "Qwen Pandrator adapter"
+  else
+    fail "Adapter Qwen mancante"
+  fi
+
+  if [ -f "$QWEN_DIR/reference_it.wav" ]; then
+    ok "Reference voice"
+  else
+    fail "Reference voice mancante"
+  fi
+
+  if [ -f "$ROOT/config/roomtone_it.wav" ]; then
+    ok "Room tone WAV"
+  else
+    fail "Room tone WAV mancante"
+  fi
+
+  if [ -f "$ROOMTONE_CONFIG" ] &&
+     python3 -m json.tool "$ROOMTONE_CONFIG" >/dev/null 2>&1; then
+    room="$(
+      python3 - "$ROOMTONE_CONFIG" <<'PYR'
+import json, sys
+c = json.load(open(sys.argv[1]))
+if c.get("enabled"):
+    print(f"{c.get('level_dbfs', -58)} dBFS")
+else:
+    print("OFF")
+PYR
+    )"
+    ok "Room tone config · $room"
+  else
+    fail "roomtone.json mancante o non valido"
+  fi
+
+  if grep -q "_room_tone_pcm" \
+       "$PANDRATOR_HOME/pandrator/web/audio_assembly.py" 2>/dev/null; then
+    ok "Pandrator room-tone patch applicata"
+  else
+    fail "Pandrator room-tone patch NON applicata"
+  fi
+
+  if [ -s "$ROOT/patches/pandrator-roomtone.patch" ]; then
+    ok "Patch di backup salvata"
+  else
+    fail "Patch di backup mancante o vuota"
+  fi
+
+  if curl -fsS http://127.0.0.1:8042/readyz >/dev/null 2>&1; then
+    ok "Qwen service · ready"
+  elif port_busy 8042; then
+    echo "… Qwen service · porta 8042 attiva ma non ready"
+  else
+    echo "○ Qwen service · stopped"
+  fi
+
+  if port_busy 8097; then
+    ok "Pandrator web · porta 8097"
+  else
+    echo "○ Pandrator web · stopped"
+  fi
+
+  echo
+
+  if [ "$errors" -eq 0 ]; then
+    echo "✓ Sistema pronto"
+    return 0
+  fi
+
+  echo "✗ $errors problema/i trovato/i"
+  return 1
+}
+
+
+case "${1:-}" in
+
+  start)
+    check_installation
+    echo
+    echo "Starting Local Audiobook"
+    echo "────────────────────────"
+    start_qwen
+    start_server
+    start_worker
+    echo
+    echo "✓ Tutto pronto"
+    echo "  http://127.0.0.1:8097"
+    ;;
+
+  stop)
+    echo
+    stop_pid "Pandrator worker" "$WORKER_PID"
+    stop_pid "Pandrator server" "$SERVER_PID"
+    stop_pid "Qwen3-TTS" "$QWEN_PID"
+    ;;
+
+  restart)
+    "$0" stop
+    "$0" start
+    ;;
+
+  doctor)
+    run_doctor
+    ;;
+
+  status)
+    show_status
+    ;;
+
+  open)
+    open "http://127.0.0.1:8097/"
+    ;;
+
+  roomtone)
+    roomtone "${2:-status}"
+    ;;
+
+  logs)
+    echo "=== Qwen ==="
+    tail -n 20 "$QWEN_LOG" 2>/dev/null || true
+    echo
+    echo "=== Pandrator server ==="
+    tail -n 20 "$SERVER_LOG" 2>/dev/null || true
+    echo
+    echo "=== Pandrator worker ==="
+    tail -n 20 "$WORKER_LOG" 2>/dev/null || true
+    ;;
+
+  *)
+    cat <<EOF
+Local Audiobook
+
+Usage:
+
+  ./audiobook start
+  ./audiobook stop
+  ./audiobook restart
+  ./audiobook status
+  ./audiobook doctor
+  ./audiobook open
+  ./audiobook logs
+
+  ./audiobook roomtone status
+  ./audiobook roomtone -62
+  ./audiobook roomtone -58
+  ./audiobook roomtone -54
+  ./audiobook roomtone off
+EOF
+    ;;
+
+esac

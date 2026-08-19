@@ -1,0 +1,10 @@
+Captured: Wed Aug 19 16:49:04 CEST 2026
+
+uv:
+uv 0.12.5 (Homebrew 2026-08-14 aarch64-apple-darwin)
+
+Pandrator Python:
+Python 3.12.13
+
+Qwen Python:
+Python 3.12.14
