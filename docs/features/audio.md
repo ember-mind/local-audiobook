@@ -56,10 +56,17 @@ Stato della sessione senza rilanciare niente:
 
 ## Gotchas
 
-- **La generazione è il punto fragile della pipeline.** L'ultima run registrata è
-  morta dopo ~10h con `The speech service returned no audio.` — l'adapter ha smesso
-  di restituire audio a metà libro. Prima di lanciare un libro intero, provare
-  `./audiobook sample` e guardare `logs/qwen.log`.
+- **Una generazione lunga è già fallita una volta, e non si sa perché.** Il job del
+  2026-09-01 su 3.763 segmenti è morto dopo ~10h45m con `The speech service returned
+  no audio.`, registrato in `work/pandrator/session.json`. Su adapter fresco la
+  sintesi funziona (una richiesta a `/v1/audio/speech` torna WAV valido e il processo
+  resta vivo), quindi non è un difetto di partenza: qualcosa cede nel lungo periodo.
+  Prima di lanciare un libro intero, provare `./audiobook sample` e tenere d'occhio
+  `logs/qwen.log`, che in quell'occasione non ha registrato nulla.
+- L'adapter muore insieme al process group che lo ha avviato. Lanciandolo da uno
+  script o da una sessione che poi viene chiusa, la porta 8042 sparisce senza
+  traceback e senza crash report: sembra un crash, è una pulizia. `./audiobook start`
+  usa `nohup`, ma il process group resta quello del chiamante.
 - **`max_sentence_length=600` non è arbitrario.** Scelto con `chunking-ab`: blocchi
   lunghi danno a Qwen abbastanza contesto per una prosodia narrativa. `generate`
   **rifiuta** una sessione preparata con un altro valore — è una guardia.
