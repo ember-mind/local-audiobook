@@ -152,30 +152,47 @@ def wait_job(job_id, state_path, state):
         time.sleep(2)
 
 
-def segment_count(session_id):
-    """Quanti segmenti ha prodotto prepare_text per questa sessione."""
+def segments(session_id):
+    """Tutti i segmenti della sessione, con il loro stato.
 
-    try:
-        snapshot = api("GET", f"/sessions/{session_id}/workflow")
-    except Exception:
-        return None
+    L'endpoint pagina a 250: senza seguire il cursore si vedrebbero solo i
+    primi, tutti completati, e sembrerebbe che non ci sia niente da fare.
+    """
 
-    for stage in snapshot.get("stages", []):
-        if str(stage.get("key")) != "prepare_text":
-            continue
+    collected = []
+    cursor = 0
 
-        artifact = stage.get("artifact")
+    while True:
+        page = api(
+            "GET",
+            f"/sessions/{session_id}/generation-segments"
+            f"?limit=250&cursor={cursor}",
+        )
 
-        if not isinstance(artifact, dict):
-            return None
+        items = page.get("items") or []
+        collected.extend(items)
 
-        metadata = artifact.get("metadata_json") or {}
-        count = metadata.get("segment_count")
+        total = page.get("total") or 0
+        cursor = page.get("next_cursor")
 
-        if isinstance(count, int):
-            return count
+        if not items or not cursor or len(collected) >= total:
+            return collected
 
-    return None
+
+def pending_segment_ids(session_id):
+    """(da fare, totale) — i segmenti senza audio buono, in ordine."""
+
+    everything = segments(session_id)
+
+    pending = [
+        item
+        for item in everything
+        if str(item.get("status")) != "completed"
+    ]
+
+    pending.sort(key=lambda item: item.get("ordinal") or 0)
+
+    return [str(item["id"]) for item in pending], len(everything)
 
 
 def main():
@@ -310,25 +327,64 @@ def main():
         "paragraph_silence_ms": 700,
     }
 
+    # Un run precedente puo' aver generato buona parte dei segmenti prima di
+    # morire. Rilanciare lo stage da capo li rigenererebbe tutti: su un libro
+    # sono ore buttate. Se c'e' del lavoro fatto, si chiede una run mirata
+    # sui soli segmenti mancanti.
+    pending, total = pending_segment_ids(session_id)
+
+    if total and not pending:
+        print()
+        print("✓ Tutti i segmenti hanno già audio.")
+        print(f"  Prossimo passo → ./audiobook export {slug}")
+        print()
+        return
+
+    done = total - len(pending)
+    resuming = bool(done)
+
     print()
     print("GENERATE AUDIO")
     print("──────────────")
     print(f"Libro:    {slug}")
     print(f"Sessione: {session_id}")
-    print(f"Segmenti: {segment_count(session_id) or 'n/d'}")
+
+    if resuming:
+        print(f"Segmenti: {len(pending)} da fare · {done}/{total} già pronti")
+    else:
+        print(f"Segmenti: {total or 'n/d'}")
+
     print("TTS:      Qwen3-TTS")
     print("Mode:     Voice Cloning")
     print("Voice:    italiano (alias kobo)")
     print("Chunking: 600")
     print()
 
-    job = api(
-        "POST",
-        f"/sessions/{session_id}/stages/generate_audio/run",
-        json=settings,
-    )
+    if resuming:
+        # Questa rotta accetta segment_ids; quella dello stage no. Con dei
+        # segment_ids Pandrator riusa la run esistente e le sue impostazioni
+        # gia' congelate — le stesse che hanno prodotto i segmenti fatti —
+        # quindi `settings` qui non viene passato: sarebbe ignorato.
+        run = api(
+            "POST",
+            f"/sessions/{session_id}/generation-runs",
+            json={
+                "segment_ids": pending,
+                "operation": "generate",
+            },
+        )
 
-    job_id = job["id"]
+        job_id = run["job_id"]
+
+        state["generation_run_id"] = run.get("id")
+    else:
+        job = api(
+            "POST",
+            f"/sessions/{session_id}/stages/generate_audio/run",
+            json=settings,
+        )
+
+        job_id = job["id"]
 
     state["generation_job_id"] = job_id
     state["generation_settings"] = settings

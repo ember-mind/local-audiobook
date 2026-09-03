@@ -11,7 +11,8 @@ L'assemblaggio finale è una feature a parte: vedi [export](export.md).
 - `prepare-audio` — crea/riusa la sessione, carica `text/narration_ready_it.txt`,
   esegue clean_source e prepare_text con `max_sentence_length=600`
   → `work/pandrator/session.json`
-- `generate` — lancia la generazione, riprende il monitoraggio se un job è già attivo
+- `generate` — lancia la generazione; riprende dai segmenti mancanti se una run
+  precedente si è fermata a metà, e riprende il monitoraggio se un job è già attivo
 - `sample` — un campione audio dal testo pronto, per ascoltare la voce
 - `chunking-ab` — A/B fra lunghezze di chunk diverse
 
@@ -57,12 +58,23 @@ Stato della sessione senza rilanciare niente:
 ## Gotchas
 
 - **Una generazione lunga è già fallita una volta, e non si sa perché.** Il job del
-  2026-09-01 su 3.763 segmenti è morto dopo ~10h45m con `The speech service returned
-  no audio.`, registrato in `work/pandrator/session.json`. Su adapter fresco la
-  sintesi funziona (una richiesta a `/v1/audio/speech` torna WAV valido e il processo
-  resta vivo), quindi non è un difetto di partenza: qualcosa cede nel lungo periodo.
-  Prima di lanciare un libro intero, provare `./audiobook sample` e tenere d'occhio
-  `logs/qwen.log`, che in quell'occasione non ha registrato nulla.
+  2026-09-01 è morto al segmento 3154 di 3763 — dopo ~10h45m e l'84% del libro — con
+  `The speech service returned no audio.`. Il segmento su cui si è fermato non ha
+  niente di strano (123 caratteri di prosa normale), e su adapter fresco la sintesi
+  funziona: non è un difetto di partenza, qualcosa cede nel lungo periodo.
+- **`generate` riprende, non ricomincia.** Guarda lo stato dei segmenti e, se ne
+  trova di già completati, chiede una run sui soli mancanti — il che ha reso il
+  retry di quel libro 609 segmenti invece di 3763. Senza questo un rilancio
+  butterebbe via ore di audio buono.
+- La rotta dello stage (`/stages/generate_audio/run`) **non** accetta `segment_ids`:
+  la ripresa passa da `/sessions/<id>/generation-runs`, che riusa la run esistente e
+  le sue impostazioni congelate. Per questo il retry non rilegge `settings`: se serve
+  cambiare la configurazione TTS, va rifatta una run pulita.
+- L'endpoint `/generation-runs/<id>/resume` di Pandrator accetta **solo** run in
+  stato `paused`: su una run `failed` risponde 409, ed è il motivo per cui la ripresa
+  è fatta per segment_ids invece che con quello.
+- L'elenco dei segmenti pagina a 250: chi lo legge senza seguire `next_cursor` vede
+  solo i primi, tutti completati, e conclude che non ci sia niente da fare.
 - L'adapter muore insieme al process group che lo ha avviato. Lanciandolo da uno
   script o da una sessione che poi viene chiusa, la porta 8042 sparisce senza
   traceback e senza crash report: sembra un crash, è una pulizia. `./audiobook start`
