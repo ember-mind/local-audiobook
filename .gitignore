@@ -4,3 +4,24 @@ run/*
 
 !logs/.gitkeep
 !run/.gitkeep
+
+# Progetti-libro: sorgenti protetti da copyright, testi e audio intermedi.
+# Centinaia di MB, e niente qui è ricostruibile da git.
+books/
+
+# Reference voice: la clip in uso resta tracciata, cosi' un clone
+# fresco parte senza dover ricostruire la voce. Il materiale grezzo
+# da cui si ricava (registrazioni lunghe, trascrizioni di lavoro) no.
+qwen/reference_it.wav
+qwen/reference-bank/*/reference_source_*
+
+.secrets/
+
+__pycache__/
+*.py[cod]
+
+# Backup manuali: usare git, non copie con suffisso.
+*.pre-*
+*.old
+*.orig
+*.bak
