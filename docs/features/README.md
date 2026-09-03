@@ -13,7 +13,7 @@ del codice: il codice resta la memoria vera.
 |---|---|---|
 | [services](services.md) | Accendere e spegnere i tre servizi locali (Qwen, Pandrator server, worker) | `audiobook`, `qwen/qwen_pandrator_server.py` |
 | [doctor](doctor.md) | Verificare che venv, modello, voce, token, patch e servizi siano a posto | `audiobook` (`run_doctor`) |
-| [books](books.md) | Creare e ispezionare progetti-libro | `audiobook` (`new_book`, `book_info`, `list_books`) |
+| [books](books.md) | Creare, ispezionare e sfoltire progetti-libro | `audiobook` (`new_book`, `book_info`, `list_books`), `scripts/prune_work.py` |
 | [text-pipeline](text-pipeline.md) | Da PDF/EPUB/TXT a traduzione italiana validata | `scripts/extract_book.py`, `clean_book.py`, `translate_book.py`, `finalize_translation.py`, `validate_translation.py` |
 | [proofread](proofread.md) | QC linguistico con LLM e applicazione delle correzioni | `scripts/language_qc.py`, `resolve_language_qc.py`, `apply_review_fixes.py` |
 | [narration](narration.md) | Ritagliare il corpo del libro e pulire i residui di impaginazione | `scripts/build_narration.py`, `clean_layout.py`, `finalize_layout.py` |
@@ -41,7 +41,8 @@ del codice: il codice resta la memoria vera.
       export                  output/<slug>.m4b
 
 `./audiobook prepare` copre il primo blocco, `./audiobook finish` il secondo.
-`./audiobook info <slug>` dice a che punto è un libro.
+`./audiobook info <slug>` dice a che punto è un libro e quali stadi sono da rifare
+perché il loro input è cambiato.
 
 ## Manutenzione
 

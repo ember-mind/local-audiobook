@@ -58,7 +58,19 @@ qualcosa (exit 2), e chiede i marcatori di narrazione se mancano da `book.json`
     ./audiobook export nome-libro         → books/nome-libro/output/nome-libro.m4b
 
 Ogni stadio esiste anche come comando singolo. `./audiobook` senza argomenti li elenca,
-`./audiobook info nome-libro` dice a che punto è un libro.
+`./audiobook info nome-libro` dice a che punto è un libro: `✓` fatto, `○` da fare,
+`⚠` da rifare perché l'input è cambiato.
+
+### Fare spazio
+
+`work/` accumula audio di prova ed esperimenti chiusi — su un libro reale sono
+arrivati a 118 MB su 119. Per recuperarli:
+
+    ./audiobook prune nome-libro          # mostra cosa toglierebbe
+    ./audiobook prune nome-libro --yes    # lo toglie davvero
+
+Cancella solo da una lista chiusa di cose ricostruibili. Il checkpoint di traduzione,
+la cache del QC e la sessione Pandrator non vengono mai toccati.
 
 ### Marcatori di narrazione
 

@@ -745,6 +745,7 @@ book_info() {
   [ -f "$file" ] || die "Libro non trovato: $slug"
 
   python3 - "$file" <<'PYINFO'
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -811,13 +812,121 @@ stages = [
 
 print("Pipeline:")
 
+# Uno stadio e' stantio quando l'input da cui e' stato prodotto non e' piu'
+# quello che c'e' adesso.
+#
+# Dove lo stadio registra lo sha256 del proprio input — language_qc.json e
+# session.json lo fanno — si confrontano i contenuti, e la risposta e' esatta.
+# Altrove resta la mtime, che e' grossolana: rifare uno stadio senza cambiare
+# nulla sposta la data e fa gridare al lupo. Per questo l'hash vince quando
+# c'e', e la mtime segnala solo se l'hash non e' disponibile.
+
+def recorded_hash(path, *keys):
+    """Lo sha256 dell'input che uno stadio ha annotato quando e' girato."""
+
+    if not path.is_file():
+        return None
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+
+    for key in keys:
+        value = data.get(key)
+
+        if isinstance(value, str) and value:
+            return value
+
+    return None
+
+
+def file_hash(path):
+    if not path.is_file():
+        return None
+
+    digest = hashlib.sha256()
+
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+
+    return digest.hexdigest()
+
+
+# stadio → (file che registra l'hash, chiavi, file di cui e' l'hash)
+HASH_CHECKS = {
+    "language-qc": (
+        book / "work" / "language_qc.json",
+        ("source_sha256",),
+        book / "text" / "narration_it.txt",
+    ),
+    "prepare-audio": (
+        book / "work" / "pandrator" / "session.json",
+        ("prepared_sha256", "source_sha256"),
+        book / "text" / "narration_ready_it.txt",
+    ),
+}
+
+previous_label = None
+previous_mtime = None
+stale = []
+
+
+def report(label, artifact):
+    """Stampa la riga dello stadio e dice se e' stantio."""
+
+    global previous_label, previous_mtime
+
+    if artifact is None or not artifact.exists():
+        print(f"  ○ {label}")
+        return
+
+    mtime = artifact.stat().st_mtime
+    outdated = False
+
+    if label in HASH_CHECKS:
+        record, keys, source = HASH_CHECKS[label]
+        expected = recorded_hash(record, *keys)
+        actual = file_hash(source)
+
+        if expected and actual:
+            # Verita' esatta: conta il contenuto, non la data.
+            outdated = expected != actual
+            reason = f"{source.name} è cambiato"
+        elif previous_mtime is not None and mtime < previous_mtime:
+            outdated = True
+            reason = f"più vecchio di {previous_label}"
+    elif previous_mtime is not None and mtime < previous_mtime:
+        outdated = True
+        reason = f"più vecchio di {previous_label}"
+
+    if outdated:
+        print(f"  ⚠ {label} · {reason}")
+        stale.append(label)
+    else:
+        print(f"  ✓ {label}")
+
+    previous_label = label
+    previous_mtime = mtime
+
+
 for label, artifact in stages:
-    print(f"  {'✓' if artifact.exists() else '○'} {label}")
+    report(label, artifact)
 
 exports = sorted((book / "output").glob("*.m4b")) if (book / "output").is_dir() else []
 
-print(f"  {'✓' if exports else '○'} export")
+report("export", exports[0] if exports else None)
+
 print()
+
+if stale:
+    print(
+        "⚠ Da rilanciare: "
+        + ", ".join(stale)
+        + " — l'input non è più quello da cui sono stati prodotti."
+    )
+    print()
 
 print("Config:")
 
@@ -996,6 +1105,18 @@ layout_book() {
 
   run_stage clean_layout.py "Clean layout" layout "$slug"
   run_stage finalize_layout.py "Finalize layout" layout "$slug"
+}
+
+
+# Cancella da work/ quello che e' sicuro ricostruire. Senza --yes mostra e basta.
+prune_work() {
+  slug="${1:-}"
+
+  config="$(book_config "$slug" prune)"
+
+  shift 1 || true
+
+  "$PANDRATOR_PY" "$ROOT/scripts/prune_work.py" "$config" "$@"
 }
 
 
@@ -1421,6 +1542,11 @@ case "${1:-}" in
     book_info "${2:-}"
     ;;
 
+  prune)
+    shift
+    prune_work "$@"
+    ;;
+
   books)
     list_books
     ;;
@@ -1485,6 +1611,7 @@ Libri:
 
   ./audiobook books
   ./audiobook info nome-libro
+  ./audiobook prune nome-libro [--yes] [--keep N]
 
 Servizi:
 

@@ -7,13 +7,21 @@ Tutti i comandi della pipeline prendono lo slug.
 
 - `new` — copia il sorgente, crea slug, alberatura e `book.json` di default
 - `books` — elenca slug e titolo di tutti i progetti
-- `info` — config, stato di ogni stadio della pipeline, cover e marcatori
+- `info` — config, stato e freschezza di ogni stadio, cover e marcatori
+- `prune` — cancella da `work/` quello che è sicuro ricostruire
 
 ## How to get to it
 
     ./audiobook new ~/Downloads/libro.pdf     # PDF, EPUB o TXT
     ./audiobook books
     ./audiobook info nome-libro
+
+`info` marca ogni stadio `✓` fatto, `○` da fare, `⚠` da rifare. `prune` mostra
+cosa si può cancellare e non cancella niente finché non glielo si dice:
+
+    ./audiobook prune nome-libro              # mostra e basta
+    ./audiobook prune nome-libro --yes        # cancella davvero
+    ./audiobook prune nome-libro --keep 0     # anche le run di QC archiviate
 
 Alberatura creata:
 
@@ -31,22 +39,32 @@ Alberatura creata:
     ./audiobook new /path/assoluto/libro.pdf
     ./audiobook books
     ./audiobook info nome-libro
+    ./audiobook prune nome-libro
+    ./audiobook prune nome-libro --yes --keep 0
 
     # leggere la config senza CLI
     python3 -c "import json;print(json.load(open('books/nmmng/book.json')))"
 
 ## Where it lives
 
-- `audiobook` — funzioni `new_book`, `book_info`, `list_books`
+- `audiobook` — funzioni `new_book`, `book_info`, `list_books`, `prune_work`
+- `scripts/prune_work.py` — l'allowlist di cosa è cancellabile
 - `books/nmmng/book.json` — config minima, come la genera `new`
 - `books/dressed-a-century-of-hollywood-costume-design-landis-deborah-nadoolman/book.json`
   — config completa: `translation.context`, `terminology`, `instructions`, `narration`
 
 ## Gotchas
 
-- `info` è il modo più rapido di sapere a che punto è un libro: elenca gli stadi con
-  `✓`/`○` in base all'artefatto che ognuno produce. Un `✓` prova che il file esiste,
-  non che sia aggiornato rispetto agli stadi precedenti.
+- **`info` distingue "fatto" da "da rifare".** Dove lo stadio ha annotato lo sha256
+  del proprio input — `language-qc` e `prepare-audio` lo fanno — il confronto è sui
+  contenuti ed è esatto. Per gli altri resta la mtime, che è grossolana: rifare uno
+  stadio senza cambiare niente sposta la data e può far comparire un `⚠` innocuo.
+  L'hash vince quando c'è, proprio per non gridare al lupo.
+- `prune` lavora su una **allowlist**: audio di prova, esperimenti di chunking, run
+  di QC archiviate. Tutto il resto è intoccabile per costruzione — il checkpoint di
+  traduzione (ore di LLM), la cache del QC, la sessione Pandrator. Aggiungendo una
+  categoria, aggiungerla lì e non altrove.
+- `prune` senza `--yes` non cancella niente: `books/` non è in git e non c'è undo.
 - `info` accetta sia `translation.server_model` (quello che scrive `new`) sia il
   vecchio `translation.model`, per le config create prima.
 - `new` è idempotente sullo slug: se la cartella esiste stampa `EXISTS` e non tocca

@@ -39,5 +39,7 @@ a schermo esistano davvero.
 - La voce di riferimento è `config/voice.json`, letta sia dall'adapter sia dal doctor.
   Non hardcodare path di clip.
 - `books/` non è in git e pesa centinaia di MB: mai `git add -A` senza guardare.
+  Non c'è undo su quella cartella: `prune` ha una allowlist di cosa può cancellare
+  e di default non cancella niente. Estenderla lì, non aggirarla.
 - Il room tone dipende da una patch applicata a `~/src/Pandrator`, fuori da questo
   repo. `./audiobook doctor` è l'unico posto che verifica che ci sia ancora.
