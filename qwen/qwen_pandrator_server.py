@@ -1,4 +1,6 @@
 import io
+import json
+import os
 import threading
 import time
 from contextlib import asynccontextmanager
@@ -12,17 +14,58 @@ from qwen_tts import Qwen3TTSModel
 
 
 BASE_DIR = Path(__file__).resolve().parent
+ROOT_DIR = BASE_DIR.parent
 
 HF_MODEL = "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
-VOICE_ID = "italiano"
-LANGUAGE = "Italian"
 
-REF_AUDIO = BASE_DIR / "reference_it.wav"
-
-REF_TEXT = (
-    "C’era una volta una volpe molto furba e altrettanto famelica. "
-    "La sua fama era tale che tutti gli animali erano fuggiti dal bosco in cui abitava."
+# La voce di riferimento e' configurazione, non codice: cambiarla non deve
+# voler dire modificare questo file. Override con AUDIOBOOK_VOICE_CONFIG.
+VOICE_CONFIG_PATH = Path(
+    os.environ.get(
+        "AUDIOBOOK_VOICE_CONFIG",
+        ROOT_DIR / "config" / "voice.json",
+    )
 )
+
+
+def load_voice_config():
+    defaults = {
+        "voice_id": "italiano",
+        "language": "Italian",
+        "reference_dir": "qwen/reference-bank/harry",
+        "reference_audio": "reference_it_v2.wav",
+        "reference_text": "reference_it_v2.txt",
+    }
+
+    if not VOICE_CONFIG_PATH.is_file():
+        raise RuntimeError(
+            f"Voice config not found: {VOICE_CONFIG_PATH}"
+        )
+
+    config = defaults | json.loads(
+        VOICE_CONFIG_PATH.read_text(encoding="utf-8")
+    )
+
+    reference_dir = Path(config["reference_dir"])
+
+    if not reference_dir.is_absolute():
+        reference_dir = ROOT_DIR / reference_dir
+
+    config["reference_dir"] = reference_dir
+    config["audio_path"] = reference_dir / config["reference_audio"]
+    config["text_path"] = reference_dir / config["reference_text"]
+
+    return config
+
+
+VOICE = load_voice_config()
+
+VOICE_ID = VOICE["voice_id"]
+LANGUAGE = VOICE["language"]
+
+REF_DIR = VOICE["reference_dir"]
+REF_AUDIO = VOICE["audio_path"]
+REF_TEXT_FILE = VOICE["text_path"]
 
 DEVICE = "mps" if torch.backends.mps.is_available() else "cpu"
 DTYPE = torch.float16 if DEVICE == "mps" else torch.float32
@@ -48,6 +91,16 @@ async def lifespan(app: FastAPI):
     if not REF_AUDIO.exists():
         raise RuntimeError(f"Reference audio not found: {REF_AUDIO}")
 
+    if not REF_TEXT_FILE.exists():
+        raise RuntimeError(f"Reference text not found: {REF_TEXT_FILE}")
+
+    ref_text = REF_TEXT_FILE.read_text(
+        encoding="utf-8"
+    ).strip()
+
+    if not ref_text:
+        raise RuntimeError("Reference transcript is empty")
+
     print()
     print("Loading official Qwen3-TTS...")
     print(f"Device: {DEVICE}")
@@ -65,7 +118,7 @@ async def lifespan(app: FastAPI):
 
     voice_prompt = model.create_voice_clone_prompt(
         ref_audio=str(REF_AUDIO),
-        ref_text=REF_TEXT,
+        ref_text=ref_text,
         x_vector_only_mode=False,
     )
 

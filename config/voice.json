@@ -1,0 +1,7 @@
+{
+  "voice_id": "italiano",
+  "language": "Italian",
+  "reference_dir": "qwen/reference-bank/harry",
+  "reference_audio": "reference_it_v2.wav",
+  "reference_text": "reference_it_v2.txt"
+}

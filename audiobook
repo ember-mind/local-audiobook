@@ -1,6 +1,11 @@
 #!/bin/bash
 
+# -e: un comando che fallisce ferma lo script invece di lasciarlo continuare
+# con exit 0. Dove un exit non-zero e' un esito previsto, e' marcato con
+# `|| true` o sta nella condizione di un `if`.
+set -e
 set -u
+set -o pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
@@ -16,6 +21,9 @@ RUN_DIR="$ROOT/run"
 LOG_DIR="$ROOT/logs"
 
 ROOMTONE_CONFIG="$ROOT/config/roomtone.json"
+VOICE_CONFIG="$ROOT/config/voice.json"
+
+PANDRATOR_TOKEN="$ROOT/.secrets/pandrator-token"
 
 QWEN_PID="$RUN_DIR/qwen.pid"
 SERVER_PID="$RUN_DIR/pandrator-server.pid"
@@ -77,11 +85,38 @@ check_installation() {
   [ -f "$QWEN_DIR/qwen_pandrator_server.py" ] ||
     die "Adapter Qwen non trovato."
 
-  [ -f "$QWEN_DIR/reference_it.wav" ] ||
-    die "Reference voice non trovata."
+  [ -f "$VOICE_CONFIG" ] ||
+    die "Configurazione voce non trovata: $VOICE_CONFIG"
+
+  reference="$(voice_reference_path)" ||
+    die "Configurazione voce non leggibile: $VOICE_CONFIG"
+
+  [ -f "$reference" ] ||
+    die "Reference voice non trovata: $reference"
 
   [ -f "$ROOMTONE_CONFIG" ] ||
     die "Configurazione room tone non trovata."
+}
+
+
+# Path della clip di riferimento realmente caricata dall'adapter,
+# risolto dalla stessa config che legge l'adapter.
+voice_reference_path() {
+  python3 - "$ROOT" "$VOICE_CONFIG" <<'PYVOICE'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+config = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+
+reference_dir = Path(config.get("reference_dir", "qwen/reference-bank/harry"))
+
+if not reference_dir.is_absolute():
+    reference_dir = root / reference_dir
+
+print(reference_dir / config.get("reference_audio", "reference_it_v2.wav"))
+PYVOICE
 }
 
 
@@ -264,14 +299,27 @@ if value == "status":
 if value == "off":
     config["enabled"] = False
 
-elif value in {"-62", "-58", "-54"}:
+elif value == "on":
     config["enabled"] = True
-    config["level_dbfs"] = int(value)
 
 else:
-    raise SystemExit(
-        "Usa: audiobook roomtone off|-62|-58|-54|status"
-    )
+    try:
+        level = int(value)
+    except ValueError:
+        raise SystemExit(
+            "Usa: audiobook roomtone status|on|off|<dBFS>\n"
+            "Esempio: audiobook roomtone -58"
+        ) from None
+
+    # Sotto -90 dBFS il room tone e' inudibile, sopra -30 copre la voce.
+    if not -90 <= level <= -30:
+        raise SystemExit(
+            f"Livello fuori scala: {level} dBFS "
+            "(ammesso da -90 a -30)"
+        )
+
+    config["enabled"] = True
+    config["level_dbfs"] = level
 
 path.write_text(json.dumps(config, indent=2) + "\n")
 
@@ -308,10 +356,28 @@ show_status() {
     echo "○ Worker           stopped"
   fi
 
-  printf "✓ "
+  if roomtone_enabled; then
+    printf '✓ '
+  else
+    printf '○ '
+  fi
+
   roomtone status
 
   echo
+}
+
+
+roomtone_enabled() {
+  python3 - "$ROOMTONE_CONFIG" <<'PYRTE'
+import json
+import sys
+from pathlib import Path
+
+config = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+
+raise SystemExit(0 if config.get("enabled") else 1)
+PYRTE
 }
 
 
@@ -338,7 +404,7 @@ run_doctor() {
   fi
 
   if [ -x "$PANDRATOR_PY" ]; then
-    version="$("$PANDRATOR_PY" --version 2>&1)"
+    version="$("$PANDRATOR_PY" --version 2>&1 || true)"
     ok "Pandrator Python · $version"
   else
     fail "Pandrator virtualenv rotto o mancante"
@@ -358,7 +424,7 @@ run_doctor() {
   fi
 
   if [ -x "$QWEN_PY" ]; then
-    version="$("$QWEN_PY" --version 2>&1)"
+    version="$("$QWEN_PY" --version 2>&1 || true)"
     ok "Qwen Python · $version"
   else
     fail "Qwen virtualenv rotto o mancante"
@@ -372,7 +438,7 @@ run_doctor() {
   fi
 
   if [ -x "$QWEN_PY" ]; then
-    mps="$("$QWEN_PY" - <<'PYQ' 2>/dev/null
+    mps="$("$QWEN_PY" - <<'PYQ' 2>/dev/null || true
 import torch
 print("yes" if torch.backends.mps.is_available() else "no")
 PYQ
@@ -390,10 +456,29 @@ PYQ
     fail "Adapter Qwen mancante"
   fi
 
-  if [ -f "$QWEN_DIR/reference_it.wav" ]; then
-    ok "Reference voice"
+  if [ -f "$VOICE_CONFIG" ] &&
+     python3 -m json.tool "$VOICE_CONFIG" >/dev/null 2>&1; then
+    ok "Voice config · $(basename "$VOICE_CONFIG")"
+
+    # Il path arriva dalla stessa config che legge l'adapter: se la
+    # voce cambia, questo check segue senza modifiche.
+    reference="$(voice_reference_path 2>/dev/null || true)"
+
+    if [ -n "$reference" ] && [ -f "$reference" ]; then
+      ok "Reference voice · ${reference#$ROOT/}"
+    else
+      fail "Reference voice mancante: ${reference:-path non risolto}"
+    fi
+
+    transcript="${reference%.wav}.txt"
+
+    if [ -n "$reference" ] && [ -s "$transcript" ]; then
+      ok "Reference transcript · ${transcript#$ROOT/}"
+    else
+      fail "Reference transcript mancante o vuoto: ${transcript:-?}"
+    fi
   else
-    fail "Reference voice mancante"
+    fail "voice.json mancante o non valido: $VOICE_CONFIG"
   fi
 
   if [ -f "$ROOT/config/roomtone_it.wav" ]; then
@@ -432,6 +517,12 @@ PYR
     fail "Patch di backup mancante o vuota"
   fi
 
+  if [ -s "$PANDRATOR_TOKEN" ]; then
+    ok "Token Pandrator"
+  else
+    fail "Token Pandrator mancante o vuoto: $PANDRATOR_TOKEN"
+  fi
+
   if curl -fsS http://127.0.0.1:8042/readyz >/dev/null 2>&1; then
     ok "Qwen service · ready"
   elif port_busy 8042; then
@@ -446,6 +537,13 @@ PYR
     echo "○ Pandrator web · stopped"
   fi
 
+  # translate lo avvia da se' se manca: stopped non e' un errore.
+  if curl -fsS http://127.0.0.1:1234/v1/models >/dev/null 2>&1; then
+    ok "LLM traduzione · porta 1234"
+  else
+    echo "○ LLM traduzione · stopped (translate lo avvia)"
+  fi
+
   echo
 
   if [ "$errors" -eq 0 ]; then
@@ -455,6 +553,760 @@ PYR
 
   echo "✗ $errors problema/i trovato/i"
   return 1
+}
+
+
+new_book() {
+  source="${1:-}"
+
+  if [ -z "$source" ]; then
+    die "Uso: ./audiobook new /percorso/libro.pdf"
+  fi
+
+  # Risolve il percorso assoluto anche se contiene spazi.
+  source="$(
+    python3 - "$source" <<'PYNEWPATH'
+from pathlib import Path
+import sys
+
+p = Path(sys.argv[1]).expanduser()
+
+if not p.is_file():
+    raise SystemExit(f"File non trovato: {p}")
+
+print(p.resolve())
+PYNEWPATH
+  )" || exit 1
+
+  extension="${source##*.}"
+
+  case "$(printf '%s' "$extension" | tr '[:upper:]' '[:lower:]')" in
+    pdf|txt|epub)
+      ;;
+    *)
+      die "Formato non supportato: .$extension (usa PDF, EPUB o TXT)"
+      ;;
+  esac
+
+  result="$(
+    python3 - "$ROOT" "$source" <<'PYNEW'
+from pathlib import Path
+import json
+import re
+import sys
+import unicodedata
+from datetime import datetime
+
+root = Path(sys.argv[1])
+source = Path(sys.argv[2])
+
+books = root / "books"
+books.mkdir(parents=True, exist_ok=True)
+
+title = source.stem.replace("_", " ").replace("-", " ")
+title = re.sub(r"\s+", " ", title).strip()
+
+def slugify(value):
+    value = unicodedata.normalize("NFKD", value)
+    value = value.encode("ascii", "ignore").decode()
+    value = value.lower()
+    value = re.sub(r"[^a-z0-9]+", "-", value)
+    return value.strip("-") or "book"
+
+slug = slugify(title)
+book = books / slug
+
+if book.exists():
+    print(f"EXISTS:{book}")
+    raise SystemExit(0)
+
+(book / "source").mkdir(parents=True)
+(book / "text").mkdir()
+(book / "assets").mkdir()
+(book / "output").mkdir()
+(book / "work").mkdir()
+
+original = book / "source" / f"original{source.suffix.lower()}"
+original.write_bytes(source.read_bytes())
+
+config = {
+    "version": 1,
+    "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+    "slug": slug,
+    "title": title,
+    "author": "",
+    "source": {
+        "file": str(original.relative_to(book)),
+        "language": "en"
+    },
+    "translation": {
+        "enabled": True,
+        "target_language": "it",
+        "provider": "llama.cpp",
+        "base_url": "http://127.0.0.1:1234/v1",
+        "server_model": "google/gemma-4-12B-it-qat-q4_0-gguf:Q4_0",
+        "chunk_chars": 3500
+    },
+    "voice": {
+        "engine": "qwen3-tts",
+        "language": "Italian",
+        "profile": "italiano",
+        "reference": "../../qwen/reference_it.wav"
+    },
+    "audio": {
+        "sentence_pause_ms": 250,
+        "paragraph_pause_ms": 700,
+        "roomtone": True,
+        "roomtone_dbfs": -58
+    },
+    "output": {
+        "format": "m4b",
+        "bitrate": "192k",
+        "language": "it",
+        "cover": "assets/cover.jpg"
+    }
+}
+
+(book / "book.json").write_text(
+    json.dumps(config, indent=2, ensure_ascii=False) + "\n"
+)
+
+(book / "README.md").write_text(
+    f"""# {title}
+
+Local Audiobook book project.
+
+## Source
+
+    {original.name}
+
+## Workflow
+
+    source
+      → extract / clean
+      → translate to Italian
+      → segment narration
+      → Qwen3-TTS
+      → assemble with room tone
+      → M4B
+
+## Files
+
+- `book.json` — configurazione
+- `source/` — libro originale
+- `text/` — testo estratto e traduzione
+- `assets/` — cover e altri asset
+- `work/` — file intermedi
+- `output/` — audiobook finale
+"""
+)
+
+print(f"CREATED:{book}")
+PYNEW
+  )"
+
+  status="${result%%:*}"
+  book_path="${result#*:}"
+
+  case "$status" in
+    CREATED)
+      echo
+      echo "✓ Nuovo libro creato"
+      ;;
+    EXISTS)
+      echo
+      echo "✓ Progetto già esistente"
+      ;;
+    *)
+      die "Risposta inattesa durante la creazione del libro: $result"
+      ;;
+  esac
+
+  echo
+  echo "  $book_path"
+  echo
+  echo "Configurazione:"
+  echo "  $book_path/book.json"
+  echo
+  echo "Prossimo step:"
+  echo "  ./audiobook info \"$(basename "$book_path")\""
+}
+
+
+book_info() {
+  slug="${1:-}"
+
+  if [ -z "$slug" ]; then
+    die "Uso: ./audiobook info nome-libro"
+  fi
+
+  file="$ROOT/books/$slug/book.json"
+
+  [ -f "$file" ] || die "Libro non trovato: $slug"
+
+  python3 - "$file" <<'PYINFO'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+config = json.loads(path.read_text(encoding="utf-8"))
+book = path.parent
+
+title = config.get("title") or book.name
+
+translation = config.get("translation", {})
+source = config.get("source", {})
+voice = config.get("voice", {})
+audio = config.get("audio", {})
+output = config.get("output", {})
+
+print()
+print(title)
+print("─" * len(title))
+
+print(f"Slug:         {config.get('slug', book.name)}")
+print(f"Author:       {config.get('author') or 'non impostato'}")
+print(f"Source:       {source.get('file', 'non impostato')}")
+print(
+    "Language:     "
+    f"{source.get('language', '?')} → "
+    f"{translation.get('target_language', '?')}"
+)
+
+# `new` scrive server_model; `model` resta accettato per le config vecchie.
+print(
+    "Translator:   "
+    + str(
+        translation.get("server_model")
+        or translation.get("model")
+        or "non impostato"
+    )
+)
+
+print(f"TTS:          {voice.get('engine', 'non impostato')}")
+print(f"Voice:        {voice.get('profile', 'non impostato')}")
+print(f"Room tone:    {audio.get('roomtone_dbfs', '?')} dBFS (vedi config/roomtone.json)")
+print(
+    "Output:       "
+    f"{str(output.get('format', '?')).upper()} · "
+    f"{output.get('bitrate', '?')}"
+)
+print()
+
+# Gli stadi della pipeline nell'ordine reale, ognuno con l'artefatto che
+# ne prova il completamento. Vedi docs/features/text-pipeline.md.
+stages = [
+    ("extract", book / "text" / "source_raw.txt"),
+    ("clean", book / "text" / "source_en.txt"),
+    ("translate", book / "text" / "book_it.txt"),
+    ("validate", book / "work" / "validation_report.txt"),
+    ("narrate", book / "text" / "narration_it.txt"),
+    ("language-qc", book / "work" / "language_qc.json"),
+    ("resolve-qc", book / "text" / "narration_final_it.txt"),
+    ("apply-fixes", book / "text" / "narration_reviewed_it.txt"),
+    ("layout", book / "text" / "narration_ready_it.txt"),
+    ("prepare-audio", book / "work" / "pandrator" / "session.json"),
+]
+
+print("Pipeline:")
+
+for label, artifact in stages:
+    print(f"  {'✓' if artifact.exists() else '○'} {label}")
+
+exports = sorted((book / "output").glob("*.m4b")) if (book / "output").is_dir() else []
+
+print(f"  {'✓' if exports else '○'} export")
+print()
+
+print("Config:")
+
+cover = book / str(output.get("cover") or "assets/cover.jpg")
+print(f"  {'✓' if cover.is_file() else '○'} cover · {cover.name}")
+
+narration = config.get("narration", {})
+has_markers = bool(
+    str(narration.get("start_marker") or "").strip()
+    and str(narration.get("end_marker") or "").strip()
+)
+print(f"  {'✓' if has_markers else '○'} narration.start_marker / end_marker")
+
+if exports:
+    print()
+    print("Output:")
+    for item in exports:
+        size = item.stat().st_size / (1024 * 1024)
+        print(f"  {item.name} · {size:.1f} MB")
+
+print()
+PYINFO
+}
+
+
+list_books() {
+  books="$ROOT/books"
+
+  if [ ! -d "$books" ]; then
+    echo "Nessun libro."
+    return
+  fi
+
+  python3 - "$books" <<'PYBOOKS'
+from pathlib import Path
+import json
+import sys
+
+root = Path(sys.argv[1])
+items = []
+
+for config in sorted(root.glob("*/book.json")):
+    try:
+        c = json.loads(config.read_text())
+        items.append((
+            c.get("slug", config.parent.name),
+            c.get("title", config.parent.name)
+        ))
+    except Exception:
+        pass
+
+if not items:
+    print("Nessun libro.")
+else:
+    print()
+    print("Audiobooks")
+    print("──────────")
+    for slug, title in items:
+        print(f"{slug:30} {title}")
+    print()
+PYBOOKS
+}
+
+
+
+# ── Stadi della pipeline ─────────────────────────────────────────────────
+#
+# Ogni stadio di testo e' uno script in scripts/ che prende il path di
+# book.json. Gli stadi audio prendono lo slug e parlano con l'API di
+# Pandrator. Catena completa e ordine: docs/features/.
+
+book_config() {
+  slug="${1:-}"
+  command="${2:-info}"
+
+  [ -n "$slug" ] ||
+    die "Uso: ./audiobook $command nome-libro"
+
+  config="$ROOT/books/$slug/book.json"
+
+  [ -f "$config" ] ||
+    die "Libro non trovato: $slug"
+
+  printf '%s' "$config"
+}
+
+
+# run_stage <script> <label> <command> <slug> [args...]
+run_stage() {
+  script="$1"
+  label="$2"
+  command="$3"
+  slug="${4:-}"
+
+  shift 4 || true
+
+  config="$(book_config "$slug" "$command")"
+
+  echo
+  echo "$label · $slug"
+  echo "────────────────────────"
+
+  "$PANDRATOR_PY" "$ROOT/scripts/$script" "$config" "$@"
+}
+
+
+extract_book() {
+  run_stage extract_book.py "Extract" extract "${1:-}"
+}
+
+
+clean_book() {
+  run_stage clean_book.py "Clean" clean "${1:-}"
+}
+
+
+translate_book() {
+  slug="${1:-}"
+  option="${2:-}"
+
+  if [ "$option" = "--reset" ]; then
+    run_stage translate_book.py "Translate" translate "$slug" --reset
+  elif [ -n "$option" ]; then
+    die "Opzione non riconosciuta: $option (solo --reset)"
+  else
+    run_stage translate_book.py "Translate" translate "$slug"
+  fi
+}
+
+
+validate_translation() {
+  run_stage validate_translation.py "Validate" validate "${1:-}"
+}
+
+
+finalize_translation() {
+  slug="${1:-}"
+
+  run_stage finalize_translation.py "Finalize" finalize "$slug"
+
+  echo
+  echo "→ Validation"
+
+  "$PANDRATOR_PY" \
+    "$ROOT/scripts/validate_translation.py" \
+    "$(book_config "$slug" finalize)"
+}
+
+
+# Ritaglia il corpo del libro fra narration.start_marker e end_marker.
+narrate_book() {
+  run_stage build_narration.py "Narrate" narrate "${1:-}"
+}
+
+
+language_qc_book() {
+  run_stage language_qc.py "Language QC" language-qc "${1:-}"
+}
+
+
+# Applica solo le correzioni che il QC ha marcato come sicure.
+resolve_qc_book() {
+  run_stage resolve_language_qc.py "Resolve QC" resolve-qc "${1:-}"
+}
+
+
+# Applica le decisioni umane da work/language_qc_manual_fixes.json.
+apply_fixes_book() {
+  run_stage apply_review_fixes.py "Apply fixes" apply-fixes "${1:-}"
+}
+
+
+# Residui di impaginazione, in due passate.
+layout_book() {
+  slug="${1:-}"
+
+  run_stage clean_layout.py "Clean layout" layout "$slug"
+  run_stage finalize_layout.py "Finalize layout" layout "$slug"
+}
+
+
+# ── Stadi audio ──────────────────────────────────────────────────────────
+
+require_token() {
+  [ -f "$PANDRATOR_TOKEN" ] ||
+    die "Token Pandrator mancante: $PANDRATOR_TOKEN"
+}
+
+
+# run_audio_stage <script> <label> <command> <slug>
+run_audio_stage() {
+  script="$1"
+  label="$2"
+  command="$3"
+  slug="${4:-}"
+
+  [ -n "$slug" ] ||
+    die "Uso: ./audiobook $command nome-libro"
+
+  [ -f "$ROOT/books/$slug/book.json" ] ||
+    die "Libro non trovato: $slug"
+
+  require_token
+
+  echo
+  echo "$label · $slug"
+  echo "────────────────────────"
+
+  "$PANDRATOR_PY" "$ROOT/scripts/$script" "$slug"
+}
+
+
+prepare_audio_book() {
+  run_audio_stage pandrator_prepare_audio.py "Prepare audio" prepare-audio "${1:-}"
+}
+
+
+generate_audio_book() {
+  run_audio_stage pandrator_generate_audio.py "Generate" generate "${1:-}"
+}
+
+
+export_book() {
+  run_audio_stage export_m4b.py "Export" export "${1:-}"
+}
+
+
+sample_book() {
+  run_audio_stage qwen_sample.py "Sample" sample "${1:-}"
+}
+
+
+chunking_ab_book() {
+  run_audio_stage qwen_chunking_ab.py "Chunking AB" chunking-ab "${1:-}"
+}
+
+
+# ── Voce di riferimento ──────────────────────────────────────────────────
+
+build_reference_voice() {
+  dir="${1:-}"
+
+  [ -n "$dir" ] ||
+    die "Uso: ./audiobook reference qwen/reference-bank/<nome>"
+
+  [ -d "$dir" ] ||
+    die "Cartella non trovata: $dir"
+
+  "$PANDRATOR_PY" "$ROOT/scripts/build_reference.py" "$dir"
+}
+
+
+transcribe_reference_audio() {
+  audio="${1:-}"
+  out="${2:-}"
+
+  { [ -n "$audio" ] && [ -n "$out" ]; } ||
+    die "Uso: ./audiobook transcribe AUDIO TESTO"
+
+  [ -f "$audio" ] ||
+    die "Audio non trovato: $audio"
+
+  "$PANDRATOR_PY" "$ROOT/scripts/transcribe_reference.py" "$audio" "$out"
+}
+
+
+ui_line() {
+  printf '  %s\n' "$1"
+}
+
+ui_step() {
+  number="$1"
+  label="$2"
+  state="${3:-○}"
+
+  printf '\n'
+  printf '  %s  %-11s %s\n' "$number" "$label" "$state"
+}
+
+ui_compact() {
+  PYTHONUNBUFFERED=1 "$@" 2>&1 |
+    awk '
+      # Intestazione che run_stage stampa: "<Label> · <slug>".
+      # Filtro generico: aggiungere uno stadio non richiede
+      # di aggiungere una riga qui.
+      /^[A-Z][A-Za-z ]* · / { next }
+      /^Validation$/ { next }
+      /^─+$/ { next }
+
+      /^Output: / {
+        sub(/^Output: .*\/books\/[^\/]+\//, "      ↳ ")
+      }
+
+      /^Report: / {
+        sub(/^Report: .*\/books\/[^\/]+\//, "      ↳ ")
+      }
+
+      /^warning: The `fitz` API is deprecated/ {
+        next
+      }
+
+      {
+        if ($0 != "")
+          print "      " $0
+      }
+    '
+}
+
+
+
+ui_translate() {
+  PYTHONUNBUFFERED=1 "$@" 2>&1 |
+    python3 -u "$ROOT/scripts/ui_translate_progress.py"
+
+  command_status=${PIPESTATUS[0]}
+  return "$command_status"
+}
+
+
+
+
+
+
+
+# ui_run_step <numero> <label> <runner> <funzione> <slug>
+#
+# Stampa lo step, lo esegue attraverso il filtro di output scelto e
+# propaga l'exit code invariato: gli stadi usano codici diversi da 1
+# per dire cose diverse (2 = serve una revisione umana).
+ui_run_step() {
+  number="$1"
+  label="$2"
+  runner="$3"
+  target="$4"
+  slug="$5"
+
+  ui_step "$number" "$label" "●"
+
+  if "$runner" "$target" "$slug"; then
+    printf '  %s  %-11s ✓\n' "$number" "$label"
+    return 0
+  fi
+
+  status=$?
+
+  printf '  %s  %-11s ✕\n' "$number" "$label"
+
+  return "$status"
+}
+
+
+prepare_book() {
+  slug="${1:-}"
+
+  config="$(book_config "$slug" prepare)"
+  book="$ROOT/books/$slug"
+
+  header="$(
+    python3 - "$config" <<'PYHEADER'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+
+print(data.get("title") or data.get("slug") or "Audiobook")
+print(
+    str(data.get("source", {}).get("language", "en")).upper()
+    + " → "
+    + str(data.get("translation", {}).get("target_language", "it")).upper()
+)
+PYHEADER
+  )"
+
+  title="$(printf '%s' "$header" | sed -n '1p')"
+  languages="$(printf '%s' "$header" | sed -n '2p')"
+
+  printf '\n'
+  printf '╭──────────────────────────────────────────────────────────╮\n'
+  printf '│  ✦ LOCAL AUDIOBOOK                                      │\n'
+  printf '│                                                          │\n'
+  printf '│  %-56.56s│\n' "$title"
+  printf '│  %-56.56s│\n' "$languages"
+  printf '╰──────────────────────────────────────────────────────────╯\n'
+
+  ui_run_step "01" "EXTRACT" ui_compact extract_book "$slug" || return $?
+  ui_run_step "02" "CLEAN" ui_compact clean_book "$slug" || return $?
+  ui_run_step "03" "TRANSLATE" ui_translate translate_book "$slug" || return $?
+  ui_run_step "04" "QC" ui_compact finalize_translation "$slug" || return $?
+
+  # NARRATE ritaglia il corpo del libro. Senza questo stadio PROOFREAD
+  # non ha il file su cui lavorare: serve prima dei marcatori in book.json.
+  if ! has_narration_markers "$config"; then
+    ui_step "05" "NARRATE" "◈"
+    printf '\n'
+    printf '  ────────────────────────────────────────────────\n'
+    printf '  ✦ CONFIGURAZIONE INCOMPLETA\n'
+    printf '\n'
+    printf '    Servono i marcatori di narrazione in book.json:\n'
+    printf '\n'
+    printf '      "narration": {\n'
+    printf '        "start_marker": "<prima riga da leggere>",\n'
+    printf '        "end_marker": "<ultima riga da leggere>"\n'
+    printf '      }\n'
+    printf '\n'
+    printf '    Il testo tradotto da cui prenderli:\n'
+    printf '      text/book_it.txt\n'
+    printf '\n'
+    printf '    Poi → ./audiobook prepare "%s"\n' "$slug"
+    printf '\n'
+    return 3
+  fi
+
+  ui_run_step "05" "NARRATE" ui_compact narrate_book "$slug" || return $?
+
+  ui_step "06" "PROOFREAD" "●"
+
+  if ui_compact language_qc_book "$slug"; then
+    printf '  06  %-11s ✓\n' "PROOFREAD"
+  else
+    status=$?
+
+    if [ "$status" -eq 2 ]; then
+      printf '  06  %-11s ◈ review\n' "PROOFREAD"
+      printf '\n'
+      printf '  ────────────────────────────────────────────────\n'
+      printf '  ✦ REVIEW REQUIRED\n'
+      printf '\n'
+      printf '    work/language_qc.json\n'
+      printf '\n'
+      printf '    Decisioni manuali (opzionale):\n'
+      printf '      work/language_qc_manual_fixes.json\n'
+      printf '\n'
+      printf '    Poi → ./audiobook finish "%s"\n' "$slug"
+      printf '\n'
+      return 2
+    fi
+
+    printf '  06  %-11s ✕\n' "PROOFREAD"
+    return "$status"
+  fi
+
+  printf '\n'
+  printf '  ────────────────────────────────────────────────\n'
+  printf '  ✦ TEXT READY\n'
+  printf '\n'
+  printf '    text/narration_it.txt\n'
+  printf '\n'
+  printf '    Next → ./audiobook finish "%s"\n' "$slug"
+  printf '\n'
+}
+
+
+has_narration_markers() {
+  python3 - "$1" <<'PYMARKERS'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+narration = data.get("narration", {}) or {}
+
+start = str(narration.get("start_marker") or "").strip()
+end = str(narration.get("end_marker") or "").strip()
+
+raise SystemExit(0 if start and end else 1)
+PYMARKERS
+}
+
+
+# Dopo la revisione: le tre passate meccaniche che portano da
+# narration_it.txt a narration_ready_it.txt.
+finish_book() {
+  slug="${1:-}"
+
+  book_config "$slug" finish >/dev/null
+
+  resolve_qc_book "$slug"
+  apply_fixes_book "$slug"
+  layout_book "$slug"
+
+  printf '\n'
+  printf '  ────────────────────────────────────────────────\n'
+  printf '  ✦ NARRATION READY\n'
+  printf '\n'
+  printf '    text/narration_ready_it.txt\n'
+  printf '\n'
+  printf '    Next → ./audiobook prepare-audio "%s"\n' "$slug"
+  printf '\n'
 }
 
 
@@ -483,6 +1335,94 @@ case "${1:-}" in
   restart)
     "$0" stop
     "$0" start
+    ;;
+
+  extract)
+    extract_book "${2:-}"
+    ;;
+
+  clean)
+    clean_book "${2:-}"
+    ;;
+
+  translate)
+    translate_book "${2:-}" "${3:-}"
+    ;;
+
+  finalize)
+    finalize_translation "${2:-}"
+    ;;
+
+  validate)
+    validate_translation "${2:-}"
+    ;;
+
+  narrate)
+    narrate_book "${2:-}"
+    ;;
+
+  language-qc)
+    language_qc_book "${2:-}"
+    ;;
+
+  resolve-qc)
+    resolve_qc_book "${2:-}"
+    ;;
+
+  apply-fixes)
+    apply_fixes_book "${2:-}"
+    ;;
+
+  layout)
+    layout_book "${2:-}"
+    ;;
+
+  prepare)
+    prepare_book "${2:-}"
+    ;;
+
+  finish)
+    finish_book "${2:-}"
+    ;;
+
+  prepare-audio)
+    prepare_audio_book "${2:-}"
+    ;;
+
+  generate)
+    generate_audio_book "${2:-}"
+    ;;
+
+  export)
+    export_book "${2:-}"
+    ;;
+
+  sample)
+    sample_book "${2:-}"
+    ;;
+
+  chunking-ab)
+    chunking_ab_book "${2:-}"
+    ;;
+
+  reference)
+    build_reference_voice "${2:-}"
+    ;;
+
+  transcribe)
+    transcribe_reference_audio "${2:-}" "${3:-}"
+    ;;
+
+  new)
+    new_book "${2:-}"
+    ;;
+
+  info)
+    book_info "${2:-}"
+    ;;
+
+  books)
+    list_books
     ;;
 
   doctor)
@@ -516,7 +1456,37 @@ case "${1:-}" in
     cat <<EOF
 Local Audiobook
 
-Usage:
+Testo:
+
+  ./audiobook new /path/to/book.pdf
+  ./audiobook extract nome-libro
+  ./audiobook clean nome-libro
+  ./audiobook translate nome-libro [--reset]
+  ./audiobook finalize nome-libro
+  ./audiobook validate nome-libro
+  ./audiobook narrate nome-libro
+  ./audiobook language-qc nome-libro
+  ./audiobook resolve-qc nome-libro
+  ./audiobook apply-fixes nome-libro
+  ./audiobook layout nome-libro
+
+  ./audiobook prepare nome-libro     extract → … → language-qc
+  ./audiobook finish nome-libro      resolve-qc → apply-fixes → layout
+
+Audio:
+
+  ./audiobook prepare-audio nome-libro
+  ./audiobook generate nome-libro
+  ./audiobook export nome-libro
+  ./audiobook sample nome-libro
+  ./audiobook chunking-ab nome-libro
+
+Libri:
+
+  ./audiobook books
+  ./audiobook info nome-libro
+
+Servizi:
 
   ./audiobook start
   ./audiobook stop
@@ -526,11 +1496,19 @@ Usage:
   ./audiobook open
   ./audiobook logs
 
+Voce:
+
+  ./audiobook reference qwen/reference-bank/<nome>
+  ./audiobook transcribe AUDIO TESTO
+
+Room tone:
+
   ./audiobook roomtone status
-  ./audiobook roomtone -62
   ./audiobook roomtone -58
-  ./audiobook roomtone -54
+  ./audiobook roomtone on
   ./audiobook roomtone off
+
+Feature Map: docs/features/
 EOF
     ;;
 

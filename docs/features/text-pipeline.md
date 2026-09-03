@@ -1,0 +1,83 @@
+# Text pipeline
+
+Da file sorgente a testo italiano validato e ritagliato. Sei stadi, ognuno con un
+comando proprio, più `prepare` che li concatena con una UI a step.
+
+## Sub-features
+
+- `extract` — PDF/EPUB/TXT → `text/source_raw.txt`
+- `clean` — de-hyphenation, header/footer, note → `text/source_en.txt` + `work/cleaning_report.txt`
+- `translate` — chunk → LLM locale → `text/book_it.txt`, con checkpoint per riprendere
+- `finalize` — pulizia finale di `book_it.txt`, poi validazione automatica
+- `validate` — confronto EN/IT → `work/validation_report.txt`
+- `narrate` — ritaglia il corpo → `text/narration_it.txt` (vedi [narration](narration.md))
+- `prepare` — orchestratore: extract → clean → translate → QC → narrate → proofread
+
+## How to get to it
+
+Tutto d'un fiato:
+
+    ./audiobook prepare nome-libro
+
+Uno stadio alla volta:
+
+    ./audiobook extract nome-libro
+    ./audiobook clean nome-libro
+    ./audiobook translate nome-libro
+    ./audiobook finalize nome-libro
+    ./audiobook validate nome-libro
+    ./audiobook narrate nome-libro
+
+`translate` riprende dal checkpoint. Per ricominciare da zero:
+
+    ./audiobook translate nome-libro --reset
+
+## Driving it
+
+    ./audiobook prepare nome-libro; echo "exit=$?"
+
+    ./audiobook extract nome-libro
+    ./audiobook clean nome-libro
+    ./audiobook translate nome-libro --reset
+    ./audiobook finalize nome-libro
+    ./audiobook validate nome-libro
+    ./audiobook narrate nome-libro
+
+A che punto è il libro, senza rilanciare niente:
+
+    ./audiobook info nome-libro
+    cat books/<slug>/work/translation/checkpoint.json
+    ls books/<slug>/work/translation/translated | wc -l
+
+Chiamare uno script direttamente (serve il python di Pandrator, non `python3`):
+
+    ~/src/Pandrator/.venv/bin/python scripts/translate_book.py books/<slug>/book.json
+
+## Where it lives
+
+- `scripts/extract_book.py`
+- `scripts/clean_book.py`
+- `scripts/translate_book.py` — chunking, avvio del server llama.cpp, checkpoint
+- `scripts/finalize_translation.py`
+- `scripts/validate_translation.py`
+- `scripts/ui_translate_progress.py` — barra di avanzamento per `prepare`
+- `audiobook` — `run_stage`, `prepare_book`, `ui_run_step`, `ui_compact`, `ui_translate`
+
+## Gotchas
+
+- **Gli exit code di `prepare` dicono cose diverse.** 0 = testo pronto; 2 = il QC
+  linguistico chiede una revisione umana; 3 = mancano i marcatori di narrazione in
+  `book.json`; 1 = errore vero. Uno script chiamante deve distinguerli.
+- `prepare` si ferma a `language-qc`. Il resto della catena è `./audiobook finish`,
+  perché in mezzo c'è una decisione umana. Vedi [proofread](proofread.md).
+- Gli stadi non verificano il proprio input: `translate` senza `clean` fallisce con
+  un errore su file mancante, non con un messaggio sull'ordine giusto. `info` è il
+  modo di vedere l'ordine reale.
+- `translate` **scrive** in `book.json` (`chunks`, `server_model`): la config è anche
+  stato. Cambiando `chunk_chars` a metà libro il numero di chunk non torna e serve
+  `--reset`.
+- `translate` avvia da sé il server llama.cpp su `:1234` se non c'è. Un modello già
+  caricato ma diverso da `server_model` viene usato comunque.
+- `ui_compact` filtra l'output degli stadi con `awk`, riconoscendo l'intestazione
+  `<Label> · <slug>` che stampa `run_stage`: uno stadio che stampa un'intestazione
+  di forma diversa fa ricomparire righe di rumore nella UI di `prepare`.
