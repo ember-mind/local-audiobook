@@ -18,7 +18,8 @@ del codice: il codice resta la memoria vera.
 | [proofread](proofread.md) | QC linguistico con LLM e applicazione delle correzioni | `scripts/language_qc.py`, `resolve_language_qc.py`, `apply_review_fixes.py` |
 | [narration](narration.md) | Ritagliare il corpo del libro e pulire i residui di impaginazione | `scripts/build_narration.py`, `clean_layout.py`, `finalize_layout.py` |
 | [audio](audio.md) | Sessione Pandrator, generazione TTS, prove di chunking | `scripts/pandrator_prepare_audio.py`, `pandrator_generate_audio.py`, `qwen_sample.py`, `qwen_chunking_ab.py` |
-| [export](export.md) | Assemblare l'M4B finale con capitoli, cover e metadata | `scripts/export_m4b.py` |
+| [export](export.md) | Assemblare l'M4B finale con cover e metadata | `scripts/export_m4b.py` |
+| [chapters](chapters.md) | Scrivere i capitoli nell'M4B, senza ricodificare | `scripts/add_chapters.py` |
 | [voice-reference](voice-reference.md) | Costruire e cambiare la voce di riferimento per il cloning | `config/voice.json`, `scripts/build_reference.py`, `transcribe_reference.py` |
 | [roomtone](roomtone.md) | Room tone al posto del silenzio digitale nelle pause | `audiobook` (`roomtone`), `config/roomtone.json`, `patches/pandrator-roomtone.patch` |
 
@@ -39,6 +40,7 @@ del codice: il codice resta la memoria vera.
       prepare-audio           work/pandrator/session.json
       generate                segmenti audio in Pandrator
       export                  output/<slug>.m4b
+      chapters                capitoli nell'M4B          ← serve "chapters" in book.json
 
 `./audiobook prepare` copre il primo blocco, `./audiobook finish` il secondo.
 `./audiobook info <slug>` dice a che punto è un libro e quali stadi sono da rifare

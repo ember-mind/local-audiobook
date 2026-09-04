@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>local.audiobook.qwen</string>
+
+  <!-- Avviato da launchd, non da una shell: sopravvive alla chiusura del
+       terminale o della sessione che lo ha acceso. E' il motivo per cui
+       esiste questo file — l'adapter moriva insieme a chi lo lanciava. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>__QWEN_PY__</string>
+    <string>-m</string>
+    <string>uvicorn</string>
+    <string>qwen_pandrator_server:app</string>
+    <string>--host</string>
+    <string>127.0.0.1</string>
+    <string>--port</string>
+    <string>8042</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__QWEN_DIR__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>AUDIOBOOK_VOICE_CONFIG</key>
+    <string>__VOICE_CONFIG__</string>
+    <key>PYTHONUNBUFFERED</key>
+    <string>1</string>
+  </dict>
+
+  <!-- Riparte se muore male, non se e' stato fermato apposta. E' questo che
+       avrebbe salvato la generazione morta al segmento 3154 di 3763. -->
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+
+  <!-- Il modello ci mette un po' a caricarsi: non trattare i riavvii
+       ravvicinati come un loop di crash. -->
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+
+  <!-- Non parte da solo al login: lo accende ./audiobook start. -->
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>__LOG__</string>
+  <key>StandardErrorPath</key>
+  <string>__LOG__</string>
+
+  <key>ProcessType</key>
+  <string>Standard</string>
+</dict>
+</plist>

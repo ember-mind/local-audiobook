@@ -74,6 +74,48 @@ model = None
 voice_prompt = None
 generation_lock = threading.Lock()
 
+# Una generazione lunga e' gia' morta una volta al segmento 3154 di 3763, dopo
+# ~9 ore, senza lasciare niente nel log. Questi contatori servono a non
+# ritrovarsi di nuovo senza indizi: ogni HEALTH_EVERY richieste finisce a log
+# una riga con memoria di processo e memoria MPS, cosi' una deriva si vede.
+request_count = 0
+started_at = time.time()
+
+HEALTH_EVERY = int(os.environ.get("QWEN_HEALTH_EVERY", "25"))
+
+# Ipotesi principale sulla morte: la cache di MPS cresce finche' il processo
+# non viene ucciso. Svuotarla ogni tanto costa pochissimo. Non e' una diagnosi
+# confermata — e' una mitigazione, e i log qui sopra servono a verificarla.
+EMPTY_CACHE_EVERY = int(os.environ.get("QWEN_EMPTY_CACHE_EVERY", "50"))
+
+
+def memory_report():
+    """Memoria del processo e dell'allocatore MPS, in MiB."""
+
+    report = {}
+
+    try:
+        import resource
+
+        peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        # Su macOS ru_maxrss e' in byte, su Linux in KiB.
+        report["rss_peak_mib"] = peak / (1024 * 1024)
+    except Exception:
+        pass
+
+    if DEVICE == "mps":
+        try:
+            report["mps_alloc_mib"] = (
+                torch.mps.current_allocated_memory() / (1024 * 1024)
+            )
+            report["mps_driver_mib"] = (
+                torch.mps.driver_allocated_memory() / (1024 * 1024)
+            )
+        except Exception:
+            pass
+
+    return report
+
 
 class SpeechRequest(BaseModel):
     model: str = "Voice Cloning"
@@ -275,10 +317,35 @@ def speech(request: SpeechRequest):
 
     audio = output.getvalue()
 
+    global request_count
+
+    request_count += 1
+
     print(
         f"TTS: {len(request.input)} chars → "
         f"{len(audio) / 1024:.0f} KiB in {elapsed:.1f}s"
     )
+
+    if EMPTY_CACHE_EVERY and request_count % EMPTY_CACHE_EVERY == 0:
+        if DEVICE == "mps":
+            try:
+                torch.mps.empty_cache()
+            except Exception:
+                pass
+
+    if HEALTH_EVERY and request_count % HEALTH_EVERY == 0:
+        stats = memory_report()
+        uptime_h = (time.time() - started_at) / 3600
+
+        detail = " · ".join(
+            f"{key}={value:.0f}" for key, value in sorted(stats.items())
+        )
+
+        print(
+            f"HEALTH: req={request_count} uptime={uptime_h:.2f}h"
+            + (f" · {detail}" if detail else ""),
+            flush=True,
+        )
 
     return Response(
         content=audio,

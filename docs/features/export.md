@@ -55,12 +55,11 @@ Vedere se l'audio a monte è pronto:
   risponde 409 `Stage 'export' is missing a required input artifact`, che non dice
   qual è l'input mancante. L'input è la traccia assemblata: `POST
   /sessions/<id>/output-assemblies` con la generation run completata.
-- **I capitoli non arrivano dal testo.** Pandrator li ricava dai segmenti marcati
-  `chapter_marker`, e `prepare_text` marca solo quello che riconosce come titolo: sul
-  primo libro reale sono usciti 3763 segmenti tutti `paragraph` e **zero capitoli**.
-  L'M4B è valido e ha copertina e metadata, ma senza navigazione. Per averla servono
-  intestazioni riconoscibili nel testo di narrazione, cosa che l'estrazione da PDF
-  in genere non conserva.
+- **L'export non produce capitoli.** Pandrator li ricava dai segmenti marcati
+  `chapter_marker`, e `prepare_text` marca solo quello che riconosce come titolo: da
+  un testo estratto da PDF escono tutti `paragraph`. I capitoli si scrivono dopo,
+  con `./audiobook chapters` — vedi [chapters](chapters.md). Rieseguire l'export
+  li cancella: va rifatto anche quello.
 - **Il bitrate richiesto non è quello che esce.** Con `192k` su una sorgente mono a
   24 kHz l'encoder AAC si ferma intorno ai 92 kbps: 10 ore stanno in ~394 MB. Non è
   un problema di qualità a questa frequenza, ma `book.json` dice una cosa e il file

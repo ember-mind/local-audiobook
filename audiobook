@@ -25,6 +25,10 @@ VOICE_CONFIG="$ROOT/config/voice.json"
 
 PANDRATOR_TOKEN="$ROOT/.secrets/pandrator-token"
 
+QWEN_LABEL="local.audiobook.qwen"
+QWEN_PLIST="$HOME/Library/LaunchAgents/$QWEN_LABEL.plist"
+QWEN_PLIST_TEMPLATE="$ROOT/launchd/$QWEN_LABEL.plist.template"
+
 QWEN_PID="$RUN_DIR/qwen.pid"
 SERVER_PID="$RUN_DIR/pandrator-server.pid"
 WORKER_PID="$RUN_DIR/pandrator-worker.pid"
@@ -120,7 +124,126 @@ PYVOICE
 }
 
 
+# L'adapter come LaunchAgent: sopravvive alla shell che lo accende e riparte
+# da solo se muore. Senza, muore col terminale — ed e' quello che ha ucciso
+# piu' di una generazione lunga.
+qwen_daemon_installed() {
+  [ -f "$QWEN_PLIST" ]
+}
+
+
+qwen_daemon_loaded() {
+  launchctl list 2>/dev/null | grep -q "$QWEN_LABEL"
+}
+
+
+install_qwen_daemon() {
+  [ -f "$QWEN_PLIST_TEMPLATE" ] ||
+    die "Template LaunchAgent non trovato: $QWEN_PLIST_TEMPLATE"
+
+  [ -x "$QWEN_PY" ] ||
+    die "Qwen Python non trovato: $QWEN_PY"
+
+  mkdir -p "$(dirname "$QWEN_PLIST")"
+
+  # I path assoluti si scrivono ora: launchd non espande variabili.
+  python3 - \
+    "$QWEN_PLIST_TEMPLATE" "$QWEN_PLIST" \
+    "$QWEN_PY" "$QWEN_DIR" "$VOICE_CONFIG" "$QWEN_LOG" <<'PYPLIST'
+import sys
+from pathlib import Path
+
+template, target, qwen_py, qwen_dir, voice_config, log = sys.argv[1:7]
+
+Path(target).write_text(
+    Path(template)
+    .read_text(encoding="utf-8")
+    .replace("__QWEN_PY__", qwen_py)
+    .replace("__QWEN_DIR__", qwen_dir)
+    .replace("__VOICE_CONFIG__", voice_config)
+    .replace("__LOG__", log),
+    encoding="utf-8",
+)
+PYPLIST
+
+  launchctl unload "$QWEN_PLIST" 2>/dev/null || true
+  launchctl load "$QWEN_PLIST" 2>/dev/null ||
+    die "launchctl load fallito per $QWEN_PLIST"
+
+  echo "✓ LaunchAgent installato · $QWEN_PLIST"
+  echo "  Qwen ora riparte da solo se muore."
+}
+
+
+uninstall_qwen_daemon() {
+  if ! qwen_daemon_installed; then
+    echo "○ LaunchAgent non installato"
+    return
+  fi
+
+  launchctl unload "$QWEN_PLIST" 2>/dev/null || true
+  rm -f "$QWEN_PLIST"
+
+  echo "✓ LaunchAgent rimosso"
+  echo "  Qwen torna a dipendere dalla shell che lo avvia."
+}
+
+
+qwen_daemon_status() {
+  if ! qwen_daemon_installed; then
+    echo "○ LaunchAgent non installato"
+    echo "  ./audiobook daemon install"
+    return
+  fi
+
+  echo "✓ LaunchAgent installato · $QWEN_PLIST"
+
+  if qwen_daemon_loaded; then
+    echo "✓ Caricato in launchd"
+    launchctl list 2>/dev/null | grep "$QWEN_LABEL" |
+      awk '{print "  pid="$1"  ultimo exit="$2}'
+  else
+    echo "○ Non caricato"
+  fi
+}
+
+
+daemon_command() {
+  case "${1:-status}" in
+    install)   install_qwen_daemon ;;
+    uninstall) uninstall_qwen_daemon ;;
+    status)    qwen_daemon_status ;;
+    *)         die "Uso: ./audiobook daemon install|uninstall|status" ;;
+  esac
+}
+
+
 start_qwen() {
+  # Se c'e' il LaunchAgent, e' lui a possedere il processo.
+  if qwen_daemon_installed; then
+    if curl -fsS http://127.0.0.1:8042/readyz >/dev/null 2>&1; then
+      echo "✓ Qwen è già avviato (LaunchAgent)"
+      return
+    fi
+
+    echo "→ Avvio Qwen3-TTS (LaunchAgent)..."
+
+    launchctl kickstart -k "gui/$(id -u)/$QWEN_LABEL" 2>/dev/null ||
+      launchctl start "$QWEN_LABEL" 2>/dev/null ||
+      die "Impossibile avviare $QWEN_LABEL via launchd"
+
+    echo "  Caricamento modello..."
+
+    if wait_for_url "http://127.0.0.1:8042/readyz" 180; then
+      echo "✓ Qwen pronto"
+      return
+    fi
+
+    echo
+    tail -n 20 "$QWEN_LOG" 2>/dev/null || true
+    die "Qwen non è diventato ready."
+  fi
+
   if pid_alive "$QWEN_PID"; then
     echo "✓ Qwen è già avviato"
     return
@@ -1166,6 +1289,12 @@ export_book() {
 }
 
 
+# Scrive i capitoli nell'M4B gia' prodotto: rimux, non ricodifica.
+chapters_book() {
+  run_stage add_chapters.py "Chapters" chapters "${1:-}"
+}
+
+
 sample_book() {
   run_audio_stage qwen_sample.py "Sample" sample "${1:-}"
 }
@@ -1450,7 +1579,16 @@ case "${1:-}" in
     echo
     stop_pid "Pandrator worker" "$WORKER_PID"
     stop_pid "Pandrator server" "$SERVER_PID"
-    stop_pid "Qwen3-TTS" "$QWEN_PID"
+
+    if qwen_daemon_installed; then
+      # Con KeepAlive, uccidere il pid lo farebbe ripartire: va fermato
+      # da launchd, altrimenti "stop" non ferma niente.
+      echo "→ Arresto Qwen3-TTS (LaunchAgent)..."
+      launchctl stop "$QWEN_LABEL" 2>/dev/null || true
+      echo "✓ Qwen3-TTS fermato"
+    else
+      stop_pid "Qwen3-TTS" "$QWEN_PID"
+    fi
     ;;
 
   restart)
@@ -1518,6 +1656,10 @@ case "${1:-}" in
     export_book "${2:-}"
     ;;
 
+  chapters)
+    chapters_book "${2:-}"
+    ;;
+
   sample)
     sample_book "${2:-}"
     ;;
@@ -1549,6 +1691,10 @@ case "${1:-}" in
 
   books)
     list_books
+    ;;
+
+  daemon)
+    daemon_command "${2:-status}"
     ;;
 
   doctor)
@@ -1604,6 +1750,7 @@ Audio:
   ./audiobook prepare-audio nome-libro
   ./audiobook generate nome-libro
   ./audiobook export nome-libro
+  ./audiobook chapters nome-libro
   ./audiobook sample nome-libro
   ./audiobook chunking-ab nome-libro
 
@@ -1615,6 +1762,9 @@ Libri:
 
 Servizi:
 
+  ./audiobook daemon install     Qwen come LaunchAgent (riparte da solo)
+  ./audiobook daemon uninstall
+  ./audiobook daemon status
   ./audiobook start
   ./audiobook stop
   ./audiobook restart

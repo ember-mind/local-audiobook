@@ -28,6 +28,10 @@ Qwen (`QWEN_HOME`):
 
 ## Uso quotidiano
 
+Una volta sola, per non perdere più una generazione lunga se l'adapter muore:
+
+    ./audiobook daemon install
+
 Controllare che tutto sia a posto:
 
     ./audiobook doctor
@@ -56,6 +60,7 @@ qualcosa (exit 2), e chiede i marcatori di narrazione se mancano da `book.json`
     ./audiobook prepare-audio nome-libro
     ./audiobook generate nome-libro
     ./audiobook export nome-libro         → books/nome-libro/output/nome-libro.m4b
+    ./audiobook chapters nome-libro       capitoli, senza ricodificare
 
 Ogni stadio esiste anche come comando singolo. `./audiobook` senza argomenti li elenca,
 `./audiobook info nome-libro` dice a che punto è un libro: `✓` fatto, `○` da fare,
@@ -163,9 +168,13 @@ M4B conserva copertina, titolo/autore e metadata audiobook. La copertina si mett
 `assets/cover.jpg` (JPEG, PNG o WebP); `export` la carica e la applica, o procede
 senza se non c'è.
 
-I **capitoli** dipendono dal testo: Pandrator li ricava dai segmenti che riconosce
-come titoli, e un testo estratto da PDF di solito non ne conserva. Il primo libro
-completo è uscito senza capitoli. Vedi [`docs/features/export.md`](docs/features/export.md).
+I **capitoli** si dichiarano in `book.json` e si scrivono dopo l'export:
+
+    ./audiobook chapters nome-libro
+
+Pandrator da solo non li produce — li ricava da segmenti marcati come titoli, e un
+testo estratto da PDF non ne conserva. Vedi
+[`docs/features/chapters.md`](docs/features/chapters.md).
 
 ## Ripristino
 
