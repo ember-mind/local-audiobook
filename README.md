@@ -159,9 +159,13 @@ valore.
     AAC 192k
     lingua it
 
-M4B conserva copertina, titolo/autore, capitoli e metadata audiobook. La copertina
-si mette in `assets/cover.jpg` (JPEG, PNG o WebP); `export` la carica e la applica,
-o procede senza se non c'è.
+M4B conserva copertina, titolo/autore e metadata audiobook. La copertina si mette in
+`assets/cover.jpg` (JPEG, PNG o WebP); `export` la carica e la applica, o procede
+senza se non c'è.
+
+I **capitoli** dipendono dal testo: Pandrator li ricava dai segmenti che riconosce
+come titoli, e un testo estratto da PDF di solito non ne conserva. Il primo libro
+completo è uscito senza capitoli. Vedi [`docs/features/export.md`](docs/features/export.md).
 
 ## Ripristino
 

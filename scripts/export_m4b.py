@@ -202,6 +202,19 @@ def download(artifact_id, destination):
     return destination
 
 
+def completed_run_id(session_id):
+    """L'ultima generation run completata: l'assembly parte da quella."""
+
+    runs = api("GET", f"/sessions/{session_id}/generation-runs")
+    items = runs.get("items") if isinstance(runs, dict) else runs
+
+    for run in items or []:
+        if str(run.get("status")) == "completed" and run.get("id"):
+            return str(run["id"])
+
+    return ""
+
+
 def export_artifact_id(session_id):
     """L'audio assemblato dall'ultimo run dello stage export."""
 
@@ -264,6 +277,14 @@ def main():
             f"Eseguire prima: ./audiobook generate {slug}"
         )
 
+    run_id = completed_run_id(session_id)
+
+    if not run_id:
+        raise SystemExit(
+            "Nessuna generation run completata da assemblare.\n"
+            f"Eseguire prima: ./audiobook generate {slug}"
+        )
+
     settings = {
         "output": {
             "format": fmt,
@@ -304,6 +325,31 @@ def main():
     print(f"Lingua:   {settings['output']['language']}")
     print()
 
+    # Generazione e export non si toccano: in mezzo c'e' l'assembly, che
+    # incolla i segmenti in un unico file applicando pause, room tone,
+    # capitoli, metadata e copertina. Lo stage export impacchetta quel
+    # risultato, e senza di esso risponde "missing a required input artifact".
+    assembly = api(
+        "POST",
+        f"/sessions/{session_id}/output-assemblies",
+        json={
+            "generation_run_id": run_id,
+            "run_override": settings,
+        },
+    )
+
+    assembly_job = assembly.get("job_id") or assembly.get("job", {}).get("id")
+
+    state["assembly_id"] = assembly.get("id")
+    state["assembly_job_id"] = assembly_job
+    state["export_settings"] = settings
+    save(state_path, state)
+
+    print(f"→ Assembly · {assembly.get('id')}")
+
+    if assembly_job:
+        wait_job(assembly_job, "Assembly")
+
     job = api(
         "POST",
         f"/sessions/{session_id}/stages/export/run",
@@ -313,7 +359,6 @@ def main():
     job_id = job["id"]
 
     state["export_job_id"] = job_id
-    state["export_settings"] = settings
     save(state_path, state)
 
     print(f"→ Job export · {job_id}")
