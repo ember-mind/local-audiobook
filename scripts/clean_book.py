@@ -13,6 +13,10 @@ KNOWN_JUNK = {
 }
 
 
+def words_of(text: str) -> int:
+    return len(text.split())
+
+
 def normalized_line(line: str) -> str:
     return re.sub(r"\s+", " ", line.strip())
 
@@ -125,6 +129,36 @@ def join_wrapped_lines(lines: list[str]) -> list[str]:
     return cleaned
 
 
+# Il corpo del libro, se book.json lo delimita.
+#
+# I marcatori sono sottostringhe, non righe intere come quelli di narration:
+# dopo `join_wrapped_lines` una riga è un paragrafo intero, e la coda del libro
+# (Note, bibliografia) comincia spesso a metà riga, subito dopo l'ultima frase
+# del testo. Il marcatore finale è escluso, come in build_narration.py.
+def trim_to_body(text: str, start_marker: str, end_marker: str) -> str:
+    if start_marker:
+        start = text.find(start_marker)
+
+        if start < 0:
+            raise SystemExit(
+                f"source.body.start_marker non trovato: {start_marker}"
+            )
+    else:
+        start = 0
+
+    if end_marker:
+        end = text.find(end_marker, start + 1)
+
+        if end < 0:
+            raise SystemExit(
+                f"source.body.end_marker non trovato: {end_marker}"
+            )
+    else:
+        end = len(text)
+
+    return text[start:end].strip() + "\n"
+
+
 def main():
     if len(sys.argv) != 2:
         raise SystemExit("Uso: clean_book.py /path/to/book.json")
@@ -140,6 +174,13 @@ def main():
         raise SystemExit(
             "source_raw.txt non trovato. Esegui prima audiobook extract."
         )
+
+    body = (json.loads(config_path.read_text(encoding="utf-8"))
+            .get("source", {})
+            .get("body", {})) or {}
+
+    start_marker = str(body.get("start_marker") or "").strip()
+    end_marker = str(body.get("end_marker") or "").strip()
 
     original = raw_path.read_text(
         encoding="utf-8",
@@ -182,6 +223,13 @@ def main():
 
     final = "\n".join(cleaned).strip() + "\n"
 
+    trimmed_words = 0
+
+    if start_marker or end_marker:
+        body_only = trim_to_body(final, start_marker, end_marker)
+        trimmed_words = words_of(final) - words_of(body_only)
+        final = body_only
+
     output_path.write_text(final, encoding="utf-8")
 
     report = [
@@ -194,6 +242,8 @@ def main():
         f"Clean characters: {len(final):,}",
         f"Raw words:        {len(original.split()):,}",
         f"Clean words:      {len(final.split()):,}",
+        "",
+        f"Body trim:        {trimmed_words:,} parole fuori dal corpo",
         "",
         "Removed lines:",
     ]
@@ -216,6 +266,9 @@ def main():
     print()
     print(f"Raw words:   {len(original.split()):,}")
     print(f"Clean words: {len(final.split()):,}")
+
+    if trimmed_words:
+        print(f"Body trim:   -{trimmed_words:,} parole fuori dal corpo")
     print()
     print(f"Output: {output_path}")
     print(f"Report: {report_path}")

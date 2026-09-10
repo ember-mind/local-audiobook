@@ -6,7 +6,8 @@ comando proprio, più `prepare` che li concatena con una UI a step.
 ## Sub-features
 
 - `extract` — PDF/EPUB/TXT → `text/source_raw.txt`
-- `clean` — de-hyphenation, header/footer, note → `text/source_en.txt` + `work/cleaning_report.txt`
+- `clean` — de-hyphenation, header/footer, note → `text/source_en.txt` + `work/cleaning_report.txt`;
+  con `source.body` in `book.json` taglia anche front matter e coda (Note, bibliografia)
 - `translate` — chunk → LLM locale → `text/book_it.txt`, con checkpoint per riprendere
 - `finalize` — pulizia finale di `book_it.txt`, poi validazione automatica
 - `validate` — confronto EN/IT → `work/validation_report.txt`
@@ -65,6 +66,25 @@ Chiamare uno script direttamente (serve il python di Pandrator, non `python3`):
 
 ## Gotchas
 
+- **`prepare` rilancia `extract` e `clean` ogni volta.** Sono idempotenti solo se il
+  taglio del corpo sta in `book.json`. Modificare `source_en.txt` a mano funziona una
+  volta sola: alla `prepare` successiva `clean` lo riscrive intero, l'hash non torna e
+  `translate` chiede `--reset`, cioè ore di traduzione buttate. Il taglio va in
+  `source.body`:
+
+      "source": {
+        "file": "source/original.pdf",
+        "language": "en",
+        "body": {
+          "start_marker": "Introduction This book is for people who want to think",
+          "end_marker": "Notes 1. KNOWLEDGE"
+        }
+      }
+
+  I marcatori sono **sottostringhe**, non righe intere come quelli di `narration`: dopo
+  la pulizia una riga è un paragrafo intero e la coda comincia spesso a metà riga. Il
+  marcatore finale è escluso. Se un marcatore non si trova, `clean` esce con errore
+  invece di tradurre in silenzio anche la bibliografia.
 - **Gli exit code di `prepare` dicono cose diverse.** 0 = testo pronto; 2 = il QC
   linguistico chiede una revisione umana; 3 = mancano i marcatori di narrazione in
   `book.json`; 1 = errore vero. Uno script chiamante deve distinguerli.

@@ -7,7 +7,21 @@ set -e
 set -u
 set -o pipefail
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
+# Il repo, non la directory da cui parte il comando. `$0` puo' essere un symlink
+# in ~/.local/bin: senza risolverlo ROOT finirebbe li' e nessun libro sarebbe
+# trovato.
+SELF="$0"
+
+while [ -L "$SELF" ]; do
+  LINK="$(readlink "$SELF")"
+
+  case "$LINK" in
+    /*) SELF="$LINK" ;;
+    *) SELF="$(dirname "$SELF")/$LINK" ;;
+  esac
+done
+
+ROOT="$(cd "$(dirname "$SELF")" && pwd)"
 
 PANDRATOR_HOME="${PANDRATOR_HOME:-$HOME/src/Pandrator}"
 QWEN_HOME="${QWEN_HOME:-$HOME/src/qwen3-tts-official}"

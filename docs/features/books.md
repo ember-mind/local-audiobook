@@ -12,6 +12,14 @@ Tutti i comandi della pipeline prendono lo slug.
 
 ## How to get to it
 
+I comandi si lanciano con `./audiobook` dalla radice del repo, oppure da qualunque
+directory se c'e' un symlink nel PATH:
+
+    ln -sfn "$PWD/audiobook" ~/.local/bin/audiobook
+
+Lo script risolve il symlink prima di calcolare `ROOT`, quindi trova `books/` anche
+lanciato da fuori.
+
     ./audiobook new ~/Downloads/libro.pdf     # PDF, EPUB o TXT
     ./audiobook books
     ./audiobook info nome-libro
@@ -72,7 +80,7 @@ Alberatura creata:
 - Lo slug arriva dal nome del file, non dal titolo interno: `Dressed_Landis.pdf`
   diventa uno slug lungo e brutto che poi va digitato in ogni comando. Rinominare il
   file *prima* di `new`.
-- I campi ricchi (`context`, `terminology`, `instructions`, `narration`) **non** sono
+- I campi ricchi (`source.body`, `context`, `terminology`, `instructions`, `narration`) **non** sono
   generati da `new`: si aggiungono a mano, e senza `narration` la fase narration non parte.
 - `books/` è in `.gitignore`: niente qui è in git, e niente qui è ricostruibile da
   git. I sorgenti sono protetti da copyright e la cartella pesa centinaia di MB.
