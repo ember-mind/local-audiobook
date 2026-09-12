@@ -1,72 +1,785 @@
 {
   "operations": [
-    {"issue": 1, "kind": "exact", "from": "connotazioni sfortunata", "to": "connotazioni sfortunate", "expected": 1},
-    {"issue": 2, "kind": "exact", "from": "l'arrossimento", "to": "l'arrossamento", "expected": 1},
-    {"issue": 3, "kind": "exact", "from": "lo svolgimento dell'unico vero modo per trovare la conoscenza", "to": "lo svolgersi dell'unica vera via per trovare la conoscenza", "expected": 1, "note": "proposta QC ('la via dell'unico vero modo') resta sgrammaticata; il periodo dopo dice gia 'Il vero cammino'"},
-    {"issue": 4, "kind": "exact", "from": "objetta", "to": "obietta", "expected": 2},
-    {"issue": 6, "kind": "exact", "from": "dellaesistenza", "to": "dell'esistenza", "expected": 1, "note": "QC proponeva 'della esistenza': elisione obbligatoria"},
-    {"issue": 7, "kind": "exact", "from": "non sono un\n\npersona", "to": "non sono una\n\npersona", "expected": 1},
-    {"issue": 8, "kind": "exact", "from": "aforismi pithy", "to": "aforismi concisi", "expected": 1},
-    {"issue": 9, "kind": "exact", "from": "sembranogli", "to": "sembrano gli", "expected": 1},
-    {"issue": 10, "kind": "exact", "from": "il oscuro sospetto", "to": "l'oscuro sospetto", "expected": 1},
-    {"issue": "11", "kind": "exact", "from": "Il自分 stesso di Hume", "to": "Hume stesso", "expected": 1, "note": "leak 自分 = 'himself': la resa italiana e 'X stesso', non 'il se stesso di X'"},
-    {"issue": "31+64a", "kind": "exact", "from": "il自分 stesso Reid", "to": "Reid stesso", "expected": 1},
-    {"issue": "31+64b", "kind": "exact", "from": "il自分 stesso di Berkeley", "to": "Berkeley stesso", "expected": 1},
-    {"issue": 13, "kind": "exact", "from": "se, io facessi", "to": "se io facessi", "expected": 1},
-    {"issue": 14, "kind": "exact", "from": "Secondo questo contegno", "to": "Secondo questa concezione", "expected": 1, "note": "'contegno' e italiano ma qui traduce 'account': serve 'concezione', non 'comportamento'"},
-    {"issue": 17, "kind": "exact", "from": "ANALISI L'analisi", "to": "ANALISI\nL'analisi", "expected": 1},
-    {"issue": 18, "kind": "exact", "from": "Una analogia", "to": "Un'analogia", "expected": 1},
-    {"issue": 20, "kind": "exact", "from": "né nel tempo determinato", "to": "né nel tempo determinati", "expected": 1},
-    {"issue": 21, "kind": "exact", "from": "proprio quanto se", "to": "proprio come se", "expected": 1},
-    {"issue": "22+24", "kind": "regex", "pattern": "intervencionista", "replacement": "interventista", "expected": 7, "note": "il testo usa già 'interventista' altrove: uniforma"},
-    {"issue": 23, "kind": "exact", "from": "dal annegare", "to": "dall'annegare", "expected": 1, "note": "solo l'elisione. La proposta QC ('dal nuotare') cambia il senso: il riferimento originale va verificato sul PDF"},
-    {"issue": 28, "kind": "exact", "from": "Bởi, sia che", "to": "Poiché, sia che", "expected": 1},
-    {"issue": 29, "kind": "exact", "from": "ilTrace stesso Locke", "to": "Locke stesso", "expected": 1, "note": "stesso pattern dei leak 自分"},
-    {"issue": 30, "kind": "exact", "from": "non conducciamo", "to": "non conduciamo", "expected": 1},
-    {"issue": 32, "kind": "exact", "from": "alla autoconsapevolezza", "to": "all'autoconsapevolezza", "expected": 1},
-    {"issue": 34, "kind": "exact", "from": "mio bara", "to": "mia bara", "expected": 2},
-    {"issue": 35, "kind": "exact", "from": "Maaspettate!", "to": "Ma aspettate!", "expected": 1},
-    {"issue": 36, "kind": "exact", "from": "vi viene dato un'anteprima", "to": "vi viene data un'anteprima", "expected": 1},
-    {"issue": 37, "kind": "exact", "from": "abbiano invejato contro", "to": "abbiano inveito contro", "expected": 1, "note": "'inveighed against'; 'invegliato' proposto dal QC non esiste"},
-    {"issue": 38, "kind": "exact", "from": "apprehendiamo", "to": "apprendiamo", "expected": 1},
-    {"issue": 39, "kind": "exact", "from": "notably Kant", "to": "in particolare Kant", "expected": 1},
-    {"issue": 41, "kind": "exact", "from": "astenersi di entrambe le parti", "to": "astenersi da entrambe le parti", "expected": 1},
-    {"issue": 43, "kind": "exact", "from": "non fa alcuna differenza alcuna", "to": "non fa alcuna differenza", "expected": 1},
-    {"issue": 44, "kind": "exact", "from": "con un dotovamento naturale", "to": "con una dotazione naturale", "expected": 1, "note": "'natural endowment'; 'determinismo' proposto dal QC e un'invenzione"},
-    {"issue": 45, "kind": "exact", "from": "Stalin strigesse", "to": "Stalin uccidesse", "expected": 1, "note": "congiuntivo imperfetto retto da 'non avesse voluto che'"},
-    {"issue": 46, "kind": "exact", "from": "ricorrere a fraudi pia", "to": "ricorrere a pie frodi", "expected": 1, "note": "'pious frauds'"},
-    {"issue": 47, "kind": "exact", "from": "se non se la ipotesi", "to": "se non se l'ipotesi", "expected": 1},
-    {"issue": 48, "kind": "exact", "from": "smorzerà la vostra acume", "to": "smorzerà il vostro acume", "expected": 1},
-    {"issue": 49, "kind": "exact", "from": "su altrigrounds", "to": "su altre basi", "expected": 1, "note": "'on other grounds'; la proposta QC lasciava l'inglese in mezzo alla frase"},
-    {"issue": 50, "kind": "exact", "from": "io non accetta questo", "to": "io non accetto questo", "expected": 1},
-    {"issue": 51, "kind": "exact", "from": "una razionale per alcune regole", "to": "una giustificazione per alcune regole", "expected": 1, "note": "'a rationale for'; non 'una ragione'"},
-    {"issue": 52, "kind": "exact", "from": "NULLA DI COSA TEMERE", "to": "NULLA DA TEMERE", "expected": 1, "note": "titolo di sezione, 'Nothing to fear'"},
-    {"issue": 53, "kind": "exact", "from": "sembrata una inquietante tesi", "to": "sembrata un'inquietante tesi", "expected": 1},
-    {"issue": 54, "kind": "exact", "from": "E ognuno di questi tre modi sono modi", "to": "E ognuno di questi tre modi è un modo", "expected": 1},
-    {"issue": 55, "kind": "exact", "from": "il puro fantasia", "to": "la pura fantasia", "expected": 1},
-    {"issue": 56, "kind": "exact", "from": "se viディ piace", "to": "se vi piace", "expected": 1},
-    {"issue": 57, "kind": "exact", "from": "insisterei. . .", "to": "insisterei...", "expected": 1},
-    {"issue": 58, "kind": "exact", "from": "qualebra è la probabilità", "to": "qual è la probabilità", "expected": 1},
-    {"issue": 59, "kind": "exact", "from": "dalaspetto piuttosto intimidatorio", "to": "dall'aspetto piuttosto intimidatorio", "expected": 1},
-    {"issue": 60, "kind": "exact", "from": "astrtraendo", "to": "astraendo", "expected": 1},
-    {"issue": 61, "kind": "exact", "from": "se aumentiamo il ingrandimento", "to": "se aumentiamo l'ingrandimento", "expected": 1},
-    {"issue": 62, "kind": "exact", "from": "Dopo aver considerato\n\nche abbiamo considerato in quell'esperimento mentale", "to": "Dopo aver considerato ciò che abbiamo visto in quell'esperimento mentale", "expected": 1, "note": "ripetizione nata su un page break"},
-    {"issue": 63, "kind": "exact", "from": "Ilirik Berkeley", "to": "George Berkeley", "expected": 1},
-    {"issue": 65, "kind": "exact", "from": "non poter possibile concepire", "to": "non poter concepire", "expected": 1},
-    {"issue": 66, "kind": "exact", "from": "sollevare il疑問", "to": "sollevare il dubbio", "expected": 1},
-    {"issue": 67, "kind": "exact", "from": "Vengono conjurate in esistenza", "to": "Vengono evocate all'esistenza", "expected": 1, "note": "'conjured into existence'; 'congiurate' proposto dal QC ha il senso sbagliato"},
-    {"issue": 68, "kind": "exact", "from": "regole какие", "to": "regole", "expected": 1},
-    {"issue": 69, "kind": "exact", "from": "e il sapere quali cambiamenti", "to": "e sapere quali cambiamenti", "expected": 1},
-    {"issue": 70, "kind": "exact", "from": "tante quante sono le persone diverse", "to": "tante quante sono le persone", "expected": 1},
-    {"issue": 71, "kind": "exact", "from": "ragionamento pratico siano", "to": "ragionamento pratico sia", "expected": 1},
-    {"issue": 72, "kind": "exact", "from": "沖simpatiche", "to": "simpatiche", "expected": 1},
-    {"issue": 73, "kind": "exact", "from": "SENTIMENTI BUONI CATTIVI", "to": "SENTIMENTI BUONI, SENTIMENTI CATTIVI", "expected": 1, "note": "titolo di sezione, 'Good feelings, bad feelings'"},
-    {"issue": 74, "kind": "exact", "from": "per aver si comportato male", "to": "per essersi comportata male", "expected": 1},
-    {"issue": 75, "kind": "exact", "from": "affinché esse vengano a condividere", "to": "affinché vengano a condividere", "expected": 1},
-    {"issue": 76, "kind": "exact", "from": "con qualsiasi mezzo qualsiasi", "to": "con qualsiasi mezzo", "expected": 1},
-    {"issue": 77, "kind": "exact", "from": "imaginative", "to": "immaginative", "expected": 1},
-    {"issue": "extra-a", "kind": "exact", "from": "CONCEPCIONALISMO", "to": "CONCETTUALISMO", "expected": 1, "note": "leak spagnolo non segnalato dal QC; e la voce 'Conceptualism' dell'elenco"},
-    {"issue": "extra-b", "kind": "exact", "from": "modellate. In\n\nin questo modo", "to": "modellate. In questo modo", "expected": 1, "note": "'In' duplicato su page break"}
+    {
+      "issue": 1,
+      "kind": "exact",
+      "from": "connotazioni sfortunata",
+      "to": "connotazioni sfortunate",
+      "expected": 1
+    },
+    {
+      "issue": 2,
+      "kind": "exact",
+      "from": "l'arrossimento",
+      "to": "l'arrossamento",
+      "expected": 1
+    },
+    {
+      "issue": 3,
+      "kind": "exact",
+      "from": "lo svolgimento dell'unico vero modo per trovare la conoscenza",
+      "to": "lo svolgersi dell'unica vera via per trovare la conoscenza",
+      "expected": 1,
+      "note": "proposta QC ('la via dell'unico vero modo') resta sgrammaticata; il periodo dopo dice gia 'Il vero cammino'"
+    },
+    {
+      "issue": 4,
+      "kind": "exact",
+      "from": "objetta",
+      "to": "obietta",
+      "expected": 2
+    },
+    {
+      "issue": 6,
+      "kind": "exact",
+      "from": "dellaesistenza",
+      "to": "dell'esistenza",
+      "expected": 1,
+      "note": "QC proponeva 'della esistenza': elisione obbligatoria"
+    },
+    {
+      "issue": 7,
+      "kind": "exact",
+      "from": "non sono un\n\npersona",
+      "to": "non sono una\n\npersona",
+      "expected": 1
+    },
+    {
+      "issue": 8,
+      "kind": "exact",
+      "from": "aforismi pithy",
+      "to": "aforismi concisi",
+      "expected": 1
+    },
+    {
+      "issue": 9,
+      "kind": "exact",
+      "from": "sembranogli",
+      "to": "sembrano gli",
+      "expected": 1
+    },
+    {
+      "issue": 10,
+      "kind": "exact",
+      "from": "il oscuro sospetto",
+      "to": "l'oscuro sospetto",
+      "expected": 1
+    },
+    {
+      "issue": "11",
+      "kind": "exact",
+      "from": "Il自分 stesso di Hume",
+      "to": "Hume stesso",
+      "expected": 1,
+      "note": "leak 自分 = 'himself': la resa italiana e 'X stesso', non 'il se stesso di X'"
+    },
+    {
+      "issue": "31+64a",
+      "kind": "exact",
+      "from": "il自分 stesso Reid",
+      "to": "Reid stesso",
+      "expected": 1
+    },
+    {
+      "issue": "31+64b",
+      "kind": "exact",
+      "from": "il自分 stesso di Berkeley",
+      "to": "Berkeley stesso",
+      "expected": 1
+    },
+    {
+      "issue": 13,
+      "kind": "exact",
+      "from": "se, io facessi",
+      "to": "se io facessi",
+      "expected": 1
+    },
+    {
+      "issue": 14,
+      "kind": "exact",
+      "from": "Secondo questo contegno",
+      "to": "Secondo questa concezione",
+      "expected": 1,
+      "note": "'contegno' e italiano ma qui traduce 'account': serve 'concezione', non 'comportamento'"
+    },
+    {
+      "issue": 17,
+      "kind": "exact",
+      "from": "ANALISI L'analisi",
+      "to": "ANALISI\nL'analisi",
+      "expected": 1
+    },
+    {
+      "issue": 18,
+      "kind": "exact",
+      "from": "Una analogia",
+      "to": "Un'analogia",
+      "expected": 1
+    },
+    {
+      "issue": 20,
+      "kind": "exact",
+      "from": "né nel tempo determinato",
+      "to": "né nel tempo determinati",
+      "expected": 1
+    },
+    {
+      "issue": 21,
+      "kind": "exact",
+      "from": "proprio quanto se",
+      "to": "proprio come se",
+      "expected": 1
+    },
+    {
+      "issue": "22+24",
+      "kind": "regex",
+      "pattern": "intervencionista",
+      "replacement": "interventista",
+      "expected": 7,
+      "note": "il testo usa già 'interventista' altrove: uniforma"
+    },
+    {
+      "issue": 23,
+      "kind": "exact",
+      "from": "dal annegare",
+      "to": "dall'annegare",
+      "expected": 1,
+      "note": "solo l'elisione. La proposta QC ('dal nuotare') cambia il senso: il riferimento originale va verificato sul PDF"
+    },
+    {
+      "issue": 28,
+      "kind": "exact",
+      "from": "Bởi, sia che",
+      "to": "Poiché, sia che",
+      "expected": 1
+    },
+    {
+      "issue": 29,
+      "kind": "exact",
+      "from": "ilTrace stesso Locke",
+      "to": "Locke stesso",
+      "expected": 1,
+      "note": "stesso pattern dei leak 自分"
+    },
+    {
+      "issue": 30,
+      "kind": "exact",
+      "from": "non conducciamo",
+      "to": "non conduciamo",
+      "expected": 1
+    },
+    {
+      "issue": 32,
+      "kind": "exact",
+      "from": "alla autoconsapevolezza",
+      "to": "all'autoconsapevolezza",
+      "expected": 1
+    },
+    {
+      "issue": 34,
+      "kind": "exact",
+      "from": "mio bara",
+      "to": "mia bara",
+      "expected": 2
+    },
+    {
+      "issue": 35,
+      "kind": "exact",
+      "from": "Maaspettate!",
+      "to": "Ma aspettate!",
+      "expected": 1
+    },
+    {
+      "issue": 36,
+      "kind": "exact",
+      "from": "vi viene dato un'anteprima",
+      "to": "vi viene data un'anteprima",
+      "expected": 1
+    },
+    {
+      "issue": 37,
+      "kind": "exact",
+      "from": "abbiano invejato contro",
+      "to": "abbiano inveito contro",
+      "expected": 1,
+      "note": "'inveighed against'; 'invegliato' proposto dal QC non esiste"
+    },
+    {
+      "issue": 38,
+      "kind": "exact",
+      "from": "apprehendiamo",
+      "to": "apprendiamo",
+      "expected": 1
+    },
+    {
+      "issue": 39,
+      "kind": "exact",
+      "from": "notably Kant",
+      "to": "in particolare Kant",
+      "expected": 1
+    },
+    {
+      "issue": 41,
+      "kind": "exact",
+      "from": "astenersi di entrambe le parti",
+      "to": "astenersi da entrambe le parti",
+      "expected": 1
+    },
+    {
+      "issue": 43,
+      "kind": "exact",
+      "from": "non fa alcuna differenza alcuna",
+      "to": "non fa alcuna differenza",
+      "expected": 1
+    },
+    {
+      "issue": 44,
+      "kind": "exact",
+      "from": "con un dotovamento naturale",
+      "to": "con una dotazione naturale",
+      "expected": 1,
+      "note": "'natural endowment'; 'determinismo' proposto dal QC e un'invenzione"
+    },
+    {
+      "issue": 45,
+      "kind": "exact",
+      "from": "Stalin strigesse",
+      "to": "Stalin uccidesse",
+      "expected": 1,
+      "note": "congiuntivo imperfetto retto da 'non avesse voluto che'"
+    },
+    {
+      "issue": 46,
+      "kind": "exact",
+      "from": "ricorrere a fraudi pia",
+      "to": "ricorrere a pie frodi",
+      "expected": 1,
+      "note": "'pious frauds'"
+    },
+    {
+      "issue": 47,
+      "kind": "exact",
+      "from": "se non se la ipotesi",
+      "to": "se non se l'ipotesi",
+      "expected": 1
+    },
+    {
+      "issue": 48,
+      "kind": "exact",
+      "from": "smorzerà la vostra acume",
+      "to": "smorzerà il vostro acume",
+      "expected": 1
+    },
+    {
+      "issue": 49,
+      "kind": "exact",
+      "from": "su altrigrounds",
+      "to": "su altre basi",
+      "expected": 1,
+      "note": "'on other grounds'; la proposta QC lasciava l'inglese in mezzo alla frase"
+    },
+    {
+      "issue": 50,
+      "kind": "exact",
+      "from": "io non accetta questo",
+      "to": "io non accetto questo",
+      "expected": 1
+    },
+    {
+      "issue": 51,
+      "kind": "exact",
+      "from": "una razionale per alcune regole",
+      "to": "una giustificazione per alcune regole",
+      "expected": 1,
+      "note": "'a rationale for'; non 'una ragione'"
+    },
+    {
+      "issue": 52,
+      "kind": "exact",
+      "from": "NULLA DI COSA TEMERE",
+      "to": "NULLA DA TEMERE",
+      "expected": 1,
+      "note": "titolo di sezione, 'Nothing to fear'"
+    },
+    {
+      "issue": 53,
+      "kind": "exact",
+      "from": "sembrata una inquietante tesi",
+      "to": "sembrata un'inquietante tesi",
+      "expected": 1
+    },
+    {
+      "issue": 54,
+      "kind": "exact",
+      "from": "E ognuno di questi tre modi sono modi",
+      "to": "E ognuno di questi tre modi è un modo",
+      "expected": 1
+    },
+    {
+      "issue": 55,
+      "kind": "exact",
+      "from": "il puro fantasia",
+      "to": "la pura fantasia",
+      "expected": 1
+    },
+    {
+      "issue": 56,
+      "kind": "exact",
+      "from": "se viディ piace",
+      "to": "se vi piace",
+      "expected": 1
+    },
+    {
+      "issue": 57,
+      "kind": "exact",
+      "from": "insisterei. . .",
+      "to": "insisterei...",
+      "expected": 1
+    },
+    {
+      "issue": 58,
+      "kind": "exact",
+      "from": "qualebra è la probabilità",
+      "to": "qual è la probabilità",
+      "expected": 1
+    },
+    {
+      "issue": 59,
+      "kind": "exact",
+      "from": "dalaspetto piuttosto intimidatorio",
+      "to": "dall'aspetto piuttosto intimidatorio",
+      "expected": 1
+    },
+    {
+      "issue": 60,
+      "kind": "exact",
+      "from": "astrtraendo",
+      "to": "astraendo",
+      "expected": 1
+    },
+    {
+      "issue": 61,
+      "kind": "exact",
+      "from": "se aumentiamo il ingrandimento",
+      "to": "se aumentiamo l'ingrandimento",
+      "expected": 1
+    },
+    {
+      "issue": 62,
+      "kind": "exact",
+      "from": "Dopo aver considerato\n\nche abbiamo considerato in quell'esperimento mentale",
+      "to": "Dopo aver considerato ciò che abbiamo visto in quell'esperimento mentale",
+      "expected": 1,
+      "note": "ripetizione nata su un page break"
+    },
+    {
+      "issue": 63,
+      "kind": "exact",
+      "from": "Ilirik Berkeley",
+      "to": "George Berkeley",
+      "expected": 1
+    },
+    {
+      "issue": 65,
+      "kind": "exact",
+      "from": "non poter possibile concepire",
+      "to": "non poter concepire",
+      "expected": 1
+    },
+    {
+      "issue": 66,
+      "kind": "exact",
+      "from": "sollevare il疑問",
+      "to": "sollevare il dubbio",
+      "expected": 1
+    },
+    {
+      "issue": 67,
+      "kind": "exact",
+      "from": "Vengono conjurate in esistenza",
+      "to": "Vengono evocate all'esistenza",
+      "expected": 1,
+      "note": "'conjured into existence'; 'congiurate' proposto dal QC ha il senso sbagliato"
+    },
+    {
+      "issue": 68,
+      "kind": "exact",
+      "from": "regole какие",
+      "to": "regole",
+      "expected": 1
+    },
+    {
+      "issue": 69,
+      "kind": "exact",
+      "from": "e il sapere quali cambiamenti",
+      "to": "e sapere quali cambiamenti",
+      "expected": 1
+    },
+    {
+      "issue": 70,
+      "kind": "exact",
+      "from": "tante quante sono le persone diverse",
+      "to": "tante quante sono le persone",
+      "expected": 1
+    },
+    {
+      "issue": 71,
+      "kind": "exact",
+      "from": "ragionamento pratico siano",
+      "to": "ragionamento pratico sia",
+      "expected": 1
+    },
+    {
+      "issue": 72,
+      "kind": "exact",
+      "from": "沖simpatiche",
+      "to": "simpatiche",
+      "expected": 1
+    },
+    {
+      "issue": 73,
+      "kind": "exact",
+      "from": "SENTIMENTI BUONI CATTIVI",
+      "to": "SENTIMENTI BUONI, SENTIMENTI CATTIVI",
+      "expected": 1,
+      "note": "titolo di sezione, 'Good feelings, bad feelings'"
+    },
+    {
+      "issue": 74,
+      "kind": "exact",
+      "from": "per aver si comportato male",
+      "to": "per essersi comportata male",
+      "expected": 1
+    },
+    {
+      "issue": 75,
+      "kind": "exact",
+      "from": "affinché esse vengano a condividere",
+      "to": "affinché vengano a condividere",
+      "expected": 1
+    },
+    {
+      "issue": 76,
+      "kind": "exact",
+      "from": "con qualsiasi mezzo qualsiasi",
+      "to": "con qualsiasi mezzo",
+      "expected": 1
+    },
+    {
+      "issue": 77,
+      "kind": "exact",
+      "from": "imaginative",
+      "to": "immaginative",
+      "expected": 1
+    },
+    {
+      "issue": "extra-a",
+      "kind": "exact",
+      "from": "CONCEPCIONALISMO",
+      "to": "CONCETTUALISMO",
+      "expected": 1,
+      "note": "leak spagnolo non segnalato dal QC; e la voce 'Conceptualism' dell'elenco"
+    },
+    {
+      "issue": "extra-b",
+      "kind": "exact",
+      "from": "modellate. In\n\nin questo modo",
+      "to": "modellate. In questo modo",
+      "expected": 1,
+      "note": "'In' duplicato su page break"
+    },
+    {
+      "issue": "tts-tab-1",
+      "kind": "exact",
+      "from": "p | ¬p\n--|----\nV | F\nF | V",
+      "to": "Se p è vera, non-p è falsa; se p è falsa, non-p è vera.",
+      "expected": 1,
+      "note": "tabella di verità della negazione, illeggibile ad alta voce"
+    },
+    {
+      "issue": "tts-tab-2",
+      "kind": "exact",
+      "from": "p | q | p & q\n--|---|------\nV | V | V\nV | F | F\nF | V | F\nF | F | F",
+      "to": "«p e q» è vera in un caso solo, quando p e q sono entrambe vere; negli altri tre casi — p vera e q falsa, p falsa e q vera, entrambe false — è falsa.",
+      "expected": 1,
+      "note": "tabella di verità della congiunzione"
+    },
+    {
+      "issue": "tts-tab-3",
+      "kind": "exact",
+      "from": "p | q | p → q\n--|---|-------\nV | V | V\nV | F | F\nF | V | V\nF | F | V",
+      "to": "«se p allora q» è falsa in un caso solo, quando p è vera e q è falsa; negli altri tre casi — entrambe vere, p falsa e q vera, entrambe false — è vera.",
+      "expected": 1,
+      "note": "tabella di verità dell'implicazione"
+    },
+    {
+      "issue": "tts-q-1",
+      "kind": "exact",
+      "from": "\"$x$ è la madre di $y$\" come \"$x$ $M$ $y$\"",
+      "to": "«x è la madre di y» come «x emme y»",
+      "expected": 1,
+      "note": "M è il simbolo della relazione, introdotto qui"
+    },
+    {
+      "issue": "tts-phi-6",
+      "kind": "exact",
+      "from": "in \"$x$\" mentre",
+      "to": "in «x è phi» mentre",
+      "expected": 1
+    },
+    {
+      "issue": "tts-phi-8",
+      "kind": "exact",
+      "from": "che non è .",
+      "to": "che non è phi.",
+      "expected": 1
+    },
+    {
+      "issue": "tts-phi-9",
+      "kind": "exact",
+      "from": "simboleggiare il predicato con (la lettera greca",
+      "to": "simboleggiare il predicato con phi (la lettera greca",
+      "expected": 1
+    },
+    {
+      "issue": "tts-op-6",
+      "kind": "exact",
+      "from": "\"p → q\"",
+      "to": "«p implica q»",
+      "expected": 1
+    },
+    {
+      "issue": "tts-bayes-5",
+      "kind": "exact",
+      "from": "poniamo $h$ come l'ipotesi",
+      "to": "poniamo acca come l'ipotesi",
+      "expected": 1
+    },
+    {
+      "issue": "tts-bayes-6",
+      "kind": "exact",
+      "from": "e $e$ come il fatto",
+      "to": "ed e come il fatto",
+      "expected": 1
+    },
+    {
+      "issue": "tts-bayes-7",
+      "kind": "exact",
+      "from": "probabilità a priori di $e$ è",
+      "to": "probabilità a priori di e è",
+      "expected": 1
+    },
+    {
+      "issue": "tts-num-1",
+      "kind": "exact",
+      "from": "di 1 su 10 alla 10.125",
+      "to": "di una su dieci elevato a dieci alla centoventicinquesima potenza",
+      "expected": 1,
+      "note": "il PDF ha appiattito l'esponente annidato: EN '1 in 10 to the 10125' = 10^(10^125)"
+    },
+    {
+      "issue": "tts-q-2",
+      "kind": "regex",
+      "pattern": "\\$\\\\forall y \\\\exists x\\$ \\$x\\$ \\$M\\$ \\$y\\$",
+      "replacement": "«per ogni y esiste un x tale che x emme y»",
+      "expected": 3
+    },
+    {
+      "issue": "tts-q-3",
+      "kind": "regex",
+      "pattern": "\\$\\\\exists x \\\\forall y\\$ \\$x\\$ \\$M\\$ \\$y\\$",
+      "replacement": "«esiste un x tale che per ogni y, x emme y»",
+      "expected": 2
+    },
+    {
+      "issue": "tts-q-4",
+      "kind": "regex",
+      "pattern": "\\$\\\\exists x\\$ \\$x\\$ \\$M\\$ \\$([ab])\\$",
+      "replacement": "«esiste un x tale che x emme \\1»",
+      "expected": 1
+    },
+    {
+      "issue": "tts-q-5",
+      "kind": "regex",
+      "pattern": "\\$\\\\exists x\\$ \\$x\\$ \\$M\\$ \\$y\\$",
+      "replacement": "«esiste un x tale che x emme y»",
+      "expected": 1
+    },
+    {
+      "issue": "tts-q-6",
+      "kind": "regex",
+      "pattern": "\\$\\\\forall y\\$ \\$b\\$ \\$M\\$ \\$y\\$",
+      "replacement": "«per ogni y, b emme y»",
+      "expected": 1
+    },
+    {
+      "issue": "tts-q-7",
+      "kind": "regex",
+      "pattern": "\\$x\\$ \\$M\\$ \\$([aby])\\$",
+      "replacement": "«x emme \\1»",
+      "expected": 2
+    },
+    {
+      "issue": "tts-q-8",
+      "kind": "regex",
+      "pattern": "\\$b\\$ \\$M\\$ \\$y\\$",
+      "replacement": "«b emme y»",
+      "expected": 1
+    },
+    {
+      "issue": "tts-phi-1",
+      "kind": "regex",
+      "pattern": "\\$\\\\neg \\\\exists x\\$ \\$x\\$",
+      "replacement": "«non esiste un x tale che x sia phi»",
+      "expected": 1,
+      "note": "il simbolo phi non è nel testo estratto: il libro lo nomina a parole"
+    },
+    {
+      "issue": "tts-phi-2",
+      "kind": "regex",
+      "pattern": "\\$\\\\exists x \\\\neg x\\$",
+      "replacement": "«esiste un x tale che x non sia phi»",
+      "expected": 1
+    },
+    {
+      "issue": "tts-phi-3",
+      "kind": "regex",
+      "pattern": "\\$\\\\neg \\\\exists x \\\\neg x\\$",
+      "replacement": "«non esiste un x tale che x non sia phi»",
+      "expected": 1
+    },
+    {
+      "issue": "tts-phi-4",
+      "kind": "regex",
+      "pattern": "\\$\\\\exists x\\$ \\$x\\$",
+      "replacement": "«esiste un x tale che x sia phi»",
+      "expected": 1
+    },
+    {
+      "issue": "tts-phi-5",
+      "kind": "regex",
+      "pattern": "\\$\\\\forall x\\$ \\$x\\$",
+      "replacement": "«per ogni x, x è phi»",
+      "expected": 1
+    },
+    {
+      "issue": "tts-phi-7",
+      "kind": "regex",
+      "pattern": "(?<![a-zà-ù])([Nn]ulla|[Tt]utto|[Qq]ualcosa) è (\\.|\\\")",
+      "replacement": "\\1 è phi\\2",
+      "expected": 6,
+      "note": "buchi lasciati dal simbolo mancante"
+    },
+    {
+      "issue": "tts-op-1",
+      "kind": "regex",
+      "pattern": "\\$\\\\neg\\$\\(",
+      "replacement": "la negazione di (",
+      "expected": 2
+    },
+    {
+      "issue": "tts-op-2",
+      "kind": "regex",
+      "pattern": "\\$\\\\neg\\$\\*p\\*",
+      "replacement": "non-p",
+      "expected": 6
+    },
+    {
+      "issue": "tts-op-3",
+      "kind": "regex",
+      "pattern": "il \\$\\\\neg\\$ esterno",
+      "replacement": "la negazione esterna",
+      "expected": 1
+    },
+    {
+      "issue": "tts-op-4",
+      "kind": "regex",
+      "pattern": "\\$\\\\land\\$",
+      "replacement": "e",
+      "expected": 4
+    },
+    {
+      "issue": "tts-op-5",
+      "kind": "regex",
+      "pattern": "\\$\\\\rightarrow\\$",
+      "replacement": "implica",
+      "expected": 9
+    },
+    {
+      "issue": "tts-op-8",
+      "kind": "regex",
+      "pattern": "¬p",
+      "replacement": "non-p",
+      "expected": 3
+    },
+    {
+      "issue": "tts-op-9",
+      "kind": "regex",
+      "pattern": "\\$x, y, z, \\\\dots\\$",
+      "replacement": "x, y, z e così via",
+      "expected": 1
+    },
+    {
+      "issue": "tts-q-9",
+      "kind": "regex",
+      "pattern": "\\$\\\\neg \\\\exists x \\\\forall y\\$ «x emme y»",
+      "replacement": "«non esiste un x tale che per ogni y, x emme y»",
+      "expected": 1
+    },
+    {
+      "issue": "tts-q-10",
+      "kind": "regex",
+      "pattern": "\\$([aby])\\$",
+      "replacement": "\\1",
+      "expected": 5,
+      "note": "lettere rimaste in notazione matematica"
+    },
+    {
+      "issue": "tts-op-10",
+      "kind": "regex",
+      "pattern": " & ",
+      "replacement": " e ",
+      "expected": 9,
+      "note": "la e commerciale dentro le formule"
+    },
+    {
+      "issue": "tts-bayes-1",
+      "kind": "regex",
+      "pattern": "Prob \\(\\*?(\\w)\\*?/\\*?(\\w)\\*?\\)",
+      "replacement": "la probabilità di \\1 dato \\2",
+      "expected": 16,
+      "note": "Prob (h/e) letto come simboli è rumore"
+    },
+    {
+      "issue": "tts-bayes-2",
+      "kind": "regex",
+      "pattern": "Prob \\((\\w) e (\\w)\\)",
+      "replacement": "la probabilità di \\1 e \\2",
+      "expected": 3
+    },
+    {
+      "issue": "tts-bayes-2b",
+      "kind": "regex",
+      "pattern": "Prob \\(\\*?(\\w)\\*?\\)",
+      "replacement": "la probabilità di \\1",
+      "expected": 13
+    },
+    {
+      "issue": "tts-bayes-3",
+      "kind": "regex",
+      "pattern": "\\b(\\d+)/(\\d+)\\b",
+      "replacement": "\\1 su \\2",
+      "expected": 8,
+      "note": "frazioni"
+    },
+    {
+      "issue": "tts-bayes-4",
+      "kind": "regex",
+      "pattern": "(?<=[\\w\\)]) x (?=(?:la |il |Prob|\\d|\\*|20 su))",
+      "replacement": " per ",
+      "expected": 11,
+      "note": "segno di moltiplicazione"
+    }
   ],
   "rejected": {
     "5": "'finché penso che lo penso' è corretto e volutamente ricorsivo",
@@ -81,5 +794,20 @@
     "40": "'1 su 10 alla 10.125' è un numero: va letto sul PDF originale prima di toccarlo",
     "42": "'malevolo' è la resa consolidata della formula di Epicuro in Hume"
   },
-  "forbidden": ["自分", "ディ", "疑問", "沖", "какие", "Bởi", "ilTrace", "intervencionista", "CONCEPCIONALISMO"]
+  "forbidden": [
+    "$\\exists",
+    "$\\forall",
+    "$\\land$",
+    "$\\neg$",
+    "$\\rightarrow$",
+    "Bởi",
+    "CONCEPCIONALISMO",
+    "ilTrace",
+    "intervencionista",
+    "какие",
+    "ディ",
+    "沖",
+    "疑問",
+    "自分"
+  ]
 }

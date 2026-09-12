@@ -790,12 +790,6 @@ config = {
         "profile": "italiano",
         "reference": "../../qwen/reference_it.wav"
     },
-    "audio": {
-        "sentence_pause_ms": 250,
-        "paragraph_pause_ms": 700,
-        "roomtone": True,
-        "roomtone_dbfs": -58
-    },
     "output": {
         "format": "m4b",
         "bitrate": "192k",
@@ -896,7 +890,16 @@ title = config.get("title") or book.name
 translation = config.get("translation", {})
 source = config.get("source", {})
 voice = config.get("voice", {})
-audio = config.get("audio", {})
+# Il room tone non sta in book.json: e' una impostazione della pipeline,
+# uguale per tutti i libri. La sorgente di verita' e' config/roomtone.json.
+roomtone_path = book.parent.parent / "config" / "roomtone.json"
+
+try:
+    roomtone = json.loads(
+        roomtone_path.read_text(encoding="utf-8")
+    )
+except (OSError, ValueError):
+    roomtone = {}
 output = config.get("output", {})
 
 print()
@@ -924,7 +927,13 @@ print(
 
 print(f"TTS:          {voice.get('engine', 'non impostato')}")
 print(f"Voice:        {voice.get('profile', 'non impostato')}")
-print(f"Room tone:    {audio.get('roomtone_dbfs', '?')} dBFS (vedi config/roomtone.json)")
+if roomtone.get("enabled"):
+    print(
+        f"Room tone:    {roomtone.get('level_dbfs', '?')} dBFS "
+        "· config/roomtone.json"
+    )
+else:
+    print("Room tone:    off · config/roomtone.json")
 print(
     "Output:       "
     f"{str(output.get('format', '?')).upper()} · "

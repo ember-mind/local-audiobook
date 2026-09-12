@@ -91,3 +91,7 @@ Stato della sessione senza rilanciare niente:
   interno è protetto, un rilancio manuale dello script no.
 - `prepare-audio` è idempotente su un'impronta di testo + impostazioni: se non è
   cambiato niente non risegmenta, e lo dice.
+- **Le pause non si configurano per libro.** `sentence_silence_ms` (250) e
+  `paragraph_silence_ms` (700) stanno in `scripts/pandrator_generate_audio.py`, e
+  il livello del room tone in `config/roomtone.json`. `book.json` non ha voce in
+  capitolo: un blocco `audio` lì dentro non viene letto da nessuno.

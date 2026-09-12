@@ -101,6 +101,15 @@ Leggere il verdetto e il resoconto:
 - `resolve-qc` verifica che `language_qc.json` appartenga alla versione corrente di
   `narration_it.txt` (via sha256) e si ferma se non torna. Rifare `narrate` invalida
   un QC già fatto.
+- **Il QC guarda la lingua, non la pronuncia.** Tabelle ASCII, formule, LaTeX
+  rimasto dalla conversione (`$\\forall x$`), simboli nudi (`→`, `¬`, `&`) passano
+  il QC e poi il TTS li legge come rumore. Si convertono in parole con le stesse
+  operazioni, `kind: "regex"` (esempio: le 40 operazioni `tts-*` di `think`, che
+  riscrivono tre tabelle di verità, i quantificatori e il teorema di Bayes).
+- **Un simbolo che il PDF non ha estratto non si recupera dal testo.** In `think` il
+  predicato φ è sparito da tutte le formule, in inglese come in italiano: il libro
+  però lo nomina a parole ("la lettera greca phi"), e da lì si ricostruisce. Vale la
+  pena controllare l'inglese prima di dare la colpa alla traduzione.
 - La whitelist e le decisioni sono **dati del libro**, non codice: un libro nuovo
   parte senza whitelist e con tutti gli issue in revisione. Non si aggiungono
   correzioni dentro gli script.
