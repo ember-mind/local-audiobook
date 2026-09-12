@@ -1,84 +1,61 @@
 #!/usr/bin/env python3
 
+"""Applica al testo di narrazione le correzioni SICURE del language QC.
+
+Sicura significa: una persona ha già deciso, per questo libro, che quella
+sostituzione esatta va bene. La whitelist sta in
+work/language_qc_safe_fixes.json — dati, non codice: è specifica del libro
+e non deve vivere in questo script. Tutto il resto finisce in revisione,
+e le decisioni umane le applica apply_review_fixes.py.
+
+    text/narration_it.txt  →  text/narration_final_it.txt
+
+Senza whitelist nessuna correzione è automatica: il testo passa invariato
+e tutti gli issue del QC finiscono in revisione. È il default per un libro
+nuovo.
+
+Formato di work/language_qc_safe_fixes.json:
+
+    {
+      "safe": {
+        "nella affascinante": "nell'affascinante",
+        "produzione prolifico": "produzione prolifica"
+      }
+    }
+
+La chiave è il `from` dell'issue, il valore il `to` atteso: la correzione
+parte solo se la proposta dell'LLM coincide esattamente col valore, e solo
+se la stringa compare una volta sola nel testo.
+"""
+
 from pathlib import Path
 import hashlib
 import json
 import sys
 
 
-SAFE = {
-    "nella affascinante": "nell'affascinante",
-    "quanto le aneddoti": "quanto gli aneddoti",
-    "nel esaltare": "nell'esaltare",
-    "insista nel uscire": "insista nell'uscire",
-    "della audace": "dell'audace",
-    "a grande spese": "a grandi spese",
-    "far aspettare il autista": "far aspettare l'autista",
-    "il suo andatura": "la sua andatura",
-    "produzione prolifico": "produzione prolifica",
-    "quell'fascino": "quel fascino",
-    "mentre io parlavano": "mentre io parlavo",
-    "pochi perline": "poche perline",
+def load_safe(path):
+    """La whitelist del libro, o vuota se non c'è."""
 
-    "| chiesi quanti abiti |": "chiesi quanti abiti",
-    "| pensavo che i miei fianchi fossero troppo grandi":
-        "pensavo che i miei fianchi fossero troppo grandi",
-    "| Avrei dovuto indossare quel maledetto pareo":
-        "Avrei dovuto indossare quel maledetto pareo",
-    "Vestivamo ogni ragazza | con lo stesso pareo":
-        "Vestivamo ogni ragazza con lo stesso pareo",
+    if not path.is_file():
+        return {}
 
-    "così come i rubriche": "così come le rubriche",
-    "Daii Montgomery Clift": "Dai Montgomery Clift",
-    "| ho vestito": "Ho vestito",
-    "nel indossare": "nell'indossare",
+    data = json.loads(
+        path.read_text(encoding="utf-8")
+    )
 
-    "Yul si rasò la testa rasata":
-        "Yul si rasò la testa",
+    safe = data.get("safe") or {}
 
-    "contro il intrattenimento":
-        "contro l'intrattenimento",
-    "la sua portamento":
-        "il suo portamento",
-    "dal entusiasmo":
-        "dall'entusiasmo",
-    "il scenografo":
-        "lo scenografo",
-    "gli scimmie":
-        "le scimmie",
-    "una tartufo":
-        "un tartufo",
-    "lo ho tinto":
-        "l'ho tinto",
-    "la autorità":
-        "l'autorità",
-    "film diepoca":
-        "film d'epoca",
-    "il adolescente maschio":
-        "l'adolescente maschio",
-    "fecci":
-        "feci",
-    "unaaspirante":
-        "un'aspirante",
-    "i caratteristici bretelle":
-        "le caratteristiche bretelle",
-    "in uno stato di assoluto disperazione":
-        "in uno stato di assoluta disperazione",
-    "delXVIII":
-        "del XVIII",
-    "un comparsa":
-        "una comparsa",
-    "Raggiungere i incassi":
-        "Raggiungere gli incassi",
-    "I enormi progressi":
-        "Gli enormi progressi",
-    "pura oro":
-        "puro oro",
-    "per il incarnato":
-        "per l'incarnato",
-    "de *The Hours*":
-        "di *The Hours*",
-}
+    if not isinstance(safe, dict):
+        raise SystemExit(
+            f"STOP: {path.name}: \"safe\" deve essere "
+            "un oggetto from → to"
+        )
+
+    return {
+        str(key): str(value)
+        for key, value in safe.items()
+    }
 
 
 def sha256(text):
@@ -103,6 +80,9 @@ def main():
     resolution_path = (
         book / "work" / "language_qc_resolution.json"
     )
+    safe_path = book / "work" / "language_qc_safe_fixes.json"
+
+    safe_fixes = load_safe(safe_path)
 
     if not source.is_file():
         raise SystemExit(
@@ -134,7 +114,7 @@ def main():
         old = str(issue.get("from") or "")
         proposed = str(issue.get("to") or "")
 
-        safe_to = SAFE.get(old)
+        safe_to = safe_fixes.get(old)
 
         # Anche se la stringa è nella whitelist,
         # la proposta deve coincidere esattamente.
@@ -194,6 +174,7 @@ def main():
     print("LANGUAGE QC RESOLUTION")
     print("──────────────────────")
     print(f"SAFE applicate: {len(applied)}")
+    print(f"SAFE in whitelist: {len(safe_fixes)}")
     print(f"Da revisionare: {len(review)}")
     print()
     print("Output:")

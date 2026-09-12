@@ -1,0 +1,60 @@
+{
+  "cases": [
+    {
+      "id": 1,
+      "start_anchor": "Non essendoci ancora un sistema organizzato, la gestione dei costumi era inevitabilmente un insieme eterogeneo.",
+      "end_anchor": "—E.E. Barrett (sceneggiatore)",
+      "replacement": "Non essendoci ancora un sistema organizzato, la gestione dei costumi era inevitabilmente un insieme eterogeneo.",
+      "note": "Rags caption"
+    },
+    {
+      "id": 2,
+      "start_anchor": "ma tutti osservano con attenzione il lavoratore della bottega che, a queste doti, aggiunge la capacità di esprimere le emozioni umane in termini di abiti».",
+      "end_anchor": "Travis Banton, costumista",
+      "replacement": "ma tutti osservano con attenzione il lavoratore della bottega che, a queste doti, aggiunge la capacità di esprimere le emozioni umane in termini di abiti».",
+      "note": "Canary Murder Case caption"
+    },
+    {
+      "id": 3,
+      "start_anchor": "“Ciò limitò drasticamente le...",
+      "end_anchor": "“...la quantità di tessuto",
+      "replacement": "“Ciò limitò drasticamente la quantità di tessuto",
+      "note": "frase sul razionamento spezzata"
+    },
+    {
+      "id": 4,
+      "start_anchor": "«Una buona storia... prevale sulla star e sul",
+      "end_anchor": "«...tutti gli altri elementi nella realizzazione di un film», disse Sharaff.",
+      "replacement": "«Una buona storia... prevale sulla star e su tutti gli altri elementi nella realizzazione di un film», disse Sharaff.",
+      "note": "frase di Sharaff spezzata da Casablanca"
+    },
+    {
+      "id": 5,
+      "start_anchor": "Il realismo degli anni del dopoguerra continuò a catturare...",
+      "end_anchor": "...il pubblico",
+      "replacement": "Il realismo degli anni del dopoguerra continuò a catturare il pubblico",
+      "note": "realismo dopoguerra / Wild One"
+    },
+    {
+      "id": 6,
+      "start_anchor": "La produzione epica di *Cleopatra*, uscita due anni dopo,",
+      "end_anchor": "fu un disastro finanziario",
+      "replacement": "La produzione epica di *Cleopatra*, uscita due anni dopo, fu un disastro finanziario",
+      "note": "Cleopatra / Gypsy"
+    },
+    {
+      "id": 7,
+      "start_anchor": "Gli \"indies\" costituivano un'industria che non si opponeva tanto a Hollywood...",
+      "end_anchor": "...come parallelo ad esso.",
+      "replacement": "Gli \"indies\" costituivano un’industria non tanto in opposizione a Hollywood quanto parallela ad essa.",
+      "note": "indie / American Beauty / Pulp Fiction"
+    }
+  ],
+  "forbidden": [
+    "C SSGNATURE",
+    "speseò",
+    "seta di seta",
+    "hasorta",
+    "ever-proliferanti"
+  ]
+}

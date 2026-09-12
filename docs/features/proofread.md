@@ -6,8 +6,10 @@ correzioni: prima quelle sicure, poi le decisioni umane.
 ## Sub-features
 
 - `language-qc` — legge `text/narration_it.txt`, scrive `work/language_qc.json`
-- `resolve-qc` — applica le correzioni sicure → `text/narration_final_it.txt`
-- `apply-fixes` — applica le decisioni umane → `text/narration_reviewed_it.txt`
+- `resolve-qc` — applica le correzioni sicure di
+  `work/language_qc_safe_fixes.json` → `text/narration_final_it.txt`
+- `apply-fixes` — applica le decisioni umane di
+  `work/language_qc_manual_fixes.json` → `text/narration_reviewed_it.txt`
 
 ## How to get to it
 
@@ -26,6 +28,22 @@ Oppure, per fare resolve-qc + apply-fixes + layout in una volta:
 
 Senza file di decisioni `apply-fixes` fa passare il testo invariato: un libro il cui
 QC non ha richiesto interventi attraversa comunque lo stadio.
+
+### Formato della whitelist sicura
+
+`work/language_qc_safe_fixes.json` — la chiave è il `from` dell'issue, il valore il
+`to` atteso:
+
+    {
+      "safe": {
+        "nella affascinante": "nell'affascinante",
+        "produzione prolifico": "produzione prolifica"
+      }
+    }
+
+La correzione parte solo se la proposta dell'LLM coincide **esattamente** col valore
+e se la stringa compare una volta sola. Senza il file nessuna correzione è
+automatica: è il default di un libro nuovo, tutti gli issue vanno in revisione.
 
 ### Formato delle decisioni
 
@@ -60,11 +78,14 @@ Leggere il verdetto e il resoconto:
 ## Where it lives
 
 - `scripts/language_qc.py` — chunking, chiamate LLM, retry, timeout, parsing JSON
-- `scripts/resolve_language_qc.py`
+- `scripts/resolve_language_qc.py` — motore; la whitelist sta nei dati del libro
 - `scripts/apply_review_fixes.py` — motore generico; le correzioni stanno nei dati
 - `audiobook` — `language_qc_book`, `resolve_qc_book`, `apply_fixes_book`, `finish_book`
 - `books/dressed-a-century-of-hollywood-costume-design-landis-deborah-nadoolman/work/language_qc.json`
   — esempio di verdetto reale
+- `books/dressed-.../work/language_qc_safe_fixes.json` — esempio di whitelist (42 voci)
+- `books/think/work/language_qc_manual_fixes.json` — esempio di decisioni umane
+  (67 operazioni, 11 issue respinte)
 
 ## Gotchas
 
@@ -80,6 +101,12 @@ Leggere il verdetto e il resoconto:
 - `resolve-qc` verifica che `language_qc.json` appartenga alla versione corrente di
   `narration_it.txt` (via sha256) e si ferma se non torna. Rifare `narrate` invalida
   un QC già fatto.
+- La whitelist e le decisioni sono **dati del libro**, non codice: un libro nuovo
+  parte senza whitelist e con tutti gli issue in revisione. Non si aggiungono
+  correzioni dentro gli script.
+- L'LLM propone correzioni sbagliate con confidenza 0.99: inventa parole che non
+  esistono e "corregge" termini tecnici resi bene. Va letto issue per issue col
+  contesto sotto gli occhi, e `rejected` serve a scrivere perché.
 - Le run vecchie restano in `work/` con il timestamp nel nome
   (`language_qc-full-book-<data>.json`): nessuno le cancella, crescono per sempre.
 - L'LLM risponde JSON; il parsing ha retry e autosplit dei chunk, segno che fallisce

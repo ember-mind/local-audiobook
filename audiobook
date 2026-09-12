@@ -1480,12 +1480,15 @@ PYHEADER
     printf '  ────────────────────────────────────────────────\n'
     printf '  ✦ CONFIGURAZIONE INCOMPLETA\n'
     printf '\n'
-    printf '    Servono i marcatori di narrazione in book.json:\n'
+    printf '    Serve il marcatore di narrazione in book.json:\n'
     printf '\n'
     printf '      "narration": {\n'
     printf '        "start_marker": "<prima riga da leggere>",\n'
-    printf '        "end_marker": "<ultima riga da leggere>"\n'
+    printf '        "end_marker": "<prima riga da NON leggere>"\n'
     printf '      }\n'
+    printf '\n'
+    printf '    end_marker e opzionale: se manca o vale "EOF"\n'
+    printf '    la narrazione arriva a fine file.\n'
     printf '\n'
     printf '    Il testo tradotto da cui prenderli:\n'
     printf '      text/book_it.txt\n'
@@ -1545,9 +1548,9 @@ data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 narration = data.get("narration", {}) or {}
 
 start = str(narration.get("start_marker") or "").strip()
-end = str(narration.get("end_marker") or "").strip()
 
-raise SystemExit(0 if start and end else 1)
+# end_marker e' opzionale: assente vale "fino a fine file".
+raise SystemExit(0 if start else 1)
 PYMARKERS
 }
 

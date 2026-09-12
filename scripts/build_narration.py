@@ -37,11 +37,15 @@ def main():
         settings.get("end_marker") or ""
     ).strip()
 
-    if not start_marker or not end_marker:
+    if not start_marker:
         raise SystemExit(
-            "Configurare narration.start_marker "
-            "e narration.end_marker in book.json"
+            "Configurare narration.start_marker in book.json"
         )
+
+    # end_marker assente, vuoto o "EOF": il corpo arriva fino a fine file.
+    # Serve ai libri in cui `clean` ha già tagliato tutto quello che segue
+    # il testo da leggere, e non resta nessuna riga su cui ancorare la fine.
+    read_to_eof = not end_marker or end_marker.upper() == "EOF"
 
     source = book / "text" / "book_it.txt"
     output = book / "text" / "narration_it.txt"
@@ -67,18 +71,21 @@ def main():
             f"Marker iniziale non trovato: {start_marker}"
         )
 
-    end = next(
-        (
-            i for i in range(start + 1, len(lines))
-            if lines[i].strip().startswith(end_marker)
-        ),
-        None,
-    )
-
-    if end is None:
-        raise SystemExit(
-            f"Marker finale non trovato: {end_marker}"
+    if read_to_eof:
+        end = len(lines)
+    else:
+        end = next(
+            (
+                i for i in range(start + 1, len(lines))
+                if lines[i].strip().startswith(end_marker)
+            ),
+            None,
         )
+
+        if end is None:
+            raise SystemExit(
+                f"Marker finale non trovato: {end_marker}"
+            )
 
     narration_lines = lines[start:end]
 
@@ -101,7 +108,7 @@ def main():
         "source_sha256": sha256(full_text),
         "narration_sha256": sha256(narration),
         "start_marker": start_marker,
-        "end_marker": end_marker,
+        "end_marker": end_marker or "EOF",
         "source_words": words(full_text),
         "narration_words": words(narration),
         "source_start_line": start + 1,
@@ -140,7 +147,10 @@ def main():
     print("Da:")
     print(f"  {start_marker}")
     print("A:")
-    print(f"  prima di {end_marker}")
+    if read_to_eof:
+        print("  fine del file")
+    else:
+        print(f"  prima di {end_marker}")
     print()
     print(f"Output: {output}")
 
