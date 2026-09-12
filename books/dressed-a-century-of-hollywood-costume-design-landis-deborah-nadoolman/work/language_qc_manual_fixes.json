@@ -1,0 +1,280 @@
+{
+  "note": "Decisioni umane sul language QC di questo libro. Estratte da scripts/apply_review_fixes.py, che prima le teneva hardcoded.",
+  "operations": [
+    {
+      "issue": 1,
+      "kind": "exact",
+      "from": "Risa di cuore.",
+      "to": "Risero di cuore."
+    },
+    {
+      "issue": 3,
+      "kind": "exact",
+      "from": "baciarle [ad Ann Roth] i piedi",
+      "to": "baciarle i piedi"
+    },
+    {
+      "issue": 4,
+      "kind": "exact",
+      "from": "i suoi dislike",
+      "to": "le sue antipatie"
+    },
+    {
+      "issue": 5,
+      "kind": "exact",
+      "from": "deceptivamente",
+      "to": "insospettatamente"
+    },
+    {
+      "issue": 6,
+      "kind": "exact",
+      "from": "che ho tanto nostalgia",
+      "to": "che mi è mancato terribilmente"
+    },
+    {
+      "issue": 7,
+      "kind": "exact",
+      "note": "Caption intrusa nella frase.",
+      "from": "Costumista *It* (1927) + Travis Banton, costumista Il basco",
+      "to": "Il basco"
+    },
+    {
+      "issue": 8,
+      "kind": "exact",
+      "note": "Header di pagina intruso tra 'setacciato' e 'biblioteche, archivi e collezioni private'.",
+      "from": "XXil Morley, costumista",
+      "to": "biblioteche, archivi e collezioni private"
+    },
+    {
+      "issue": "8-dedup",
+      "kind": "regex",
+      "optional": true,
+      "flags": [
+        "ignorecase"
+      ],
+      "note": "Evita la duplicazione se la frase corretta era già presente dopo il page break.",
+      "pattern": "(biblioteche, archivi e collezioni private)\\s+\\1",
+      "replacement": "\\1"
+    },
+    {
+      "issue": 10,
+      "kind": "exact",
+      "from": "non c'era nessuno che se ne occupasse della gestione",
+      "to": "non c'era nessuno che tenesse traccia dei costumi"
+    },
+    {
+      "issue": "13+14",
+      "kind": "regex",
+      "expected": 1,
+      "note": "Issues 13 + 14 sono UNA parola spezzata a cambio pagina.",
+      "pattern": "White\\s+consid-\\s*erava consapevole di ciò che",
+      "replacement": "White considerava ciò che"
+    },
+    {
+      "issue": 16,
+      "kind": "exact",
+      "note": "L'originale è CHAPTER THREE: 1930s.",
+      "from": "TRE ANNI GLI ANNI '30",
+      "to": "CAPITOLO TRE: GLI ANNI '30"
+    },
+    {
+      "issue": 17,
+      "kind": "exact",
+      "from": "il regista picchiettava la matita",
+      "to": "il regista picchiettava con la matita"
+    },
+    {
+      "issue": 19,
+      "kind": "exact",
+      "note": "Originale: shortage of experienced seamstresses.",
+      "from": "sastee",
+      "to": "sarte"
+    },
+    {
+      "issue": 20,
+      "kind": "exact",
+      "note": "OCR: 'Mrs. [page header] Kalmus's eyes'.",
+      "from": "in Mrs. 1940s wey",
+      "to": "agli occhi della signora Kalmus"
+    },
+    {
+      "issue": 22,
+      "kind": "exact",
+      "from": "non era la moda",
+      "to": "non era di moda"
+    },
+    {
+      "issue": 23,
+      "kind": "exact",
+      "note": "In 1953 costume [1950s 179] designers united…",
+      "from": "Nel 1953 costumi anni '50",
+      "to": "Nel 1953 i costumisti"
+    },
+    {
+      "issue": "23-dedup",
+      "kind": "regex",
+      "optional": true,
+      "count": 1,
+      "flags": [
+        "ignorecase"
+      ],
+      "note": "Se 'designer' è sopravvissuto dall'altra parte del page break, rimuovilo.",
+      "pattern": "Nel 1953 i costumisti\\s+(?:designer|designers)\\b",
+      "replacement": "Nel 1953 i costumisti"
+    },
+    {
+      "issue": 25,
+      "kind": "exact",
+      "from": "SSTBER Travilla",
+      "to": "Travilla"
+    },
+    {
+      "issue": 26,
+      "kind": "exact",
+      "from": "...iw, The New York Times",
+      "to": "The New York Times"
+    },
+    {
+      "issue": 27,
+      "kind": "exact",
+      "from": "Jena Miles Peter Harry Brown",
+      "to": "Peter Harry Brown"
+    },
+    {
+      "issue": 28,
+      "kind": "exact",
+      "note": "Originale: lounging in negligees.",
+      "from": "rilassate in negli",
+      "to": "rilassate in vestaglie"
+    },
+    {
+      "issue": 29,
+      "kind": "exact",
+      "note": "Originale: jacket in which Eliza first visits…",
+      "from": "in cui Eliza visita",
+      "to": "con cui Eliza visita"
+    },
+    {
+      "issue": 31,
+      "kind": "exact",
+      "expected": 4,
+      "note": "Tutte e quattro sono grammaticalmente errate.",
+      "from": "il scenografo",
+      "to": "lo scenografo"
+    },
+    {
+      "issue": 33,
+      "kind": "exact",
+      "note": "Originale: simpler and simpler, not more and more fussy.",
+      "from": "non più e più complicato",
+      "to": "non sempre più elaborato"
+    },
+    {
+      "issue": 34,
+      "kind": "exact",
+      "from": "Be Anthea Sylbert",
+      "to": "Anthea Sylbert"
+    },
+    {
+      "issue": 35,
+      "kind": "exact",
+      "from": "Pe eS di Anthea Sylbert",
+      "to": "Anthea Sylbert"
+    },
+    {
+      "issue": 37,
+      "kind": "exact",
+      "note": "Originale: evil is sort of in control of things.",
+      "from": "il male hasorta il controllo",
+      "to": "il male ha, in un certo senso, il controllo"
+    },
+    {
+      "issue": 38,
+      "kind": "exact",
+      "note": "Originale: at the proliferating multiscreen Cineplexes.",
+      "from": "Negli ever-proliferanti multisala Cineplex",
+      "to": "Nei multisala Cineplex sempre più numerosi"
+    },
+    {
+      "issue": 40,
+      "kind": "exact",
+      "note": "Originale: a boring gray-suited businessman's tie.",
+      "from": "la cravatta di un anno di un uomo d'affari",
+      "to": "la cravatta di un uomo d'affari in un noioso completo grigio"
+    },
+    {
+      "issue": 41,
+      "kind": "exact",
+      "note": "Communication [page header: 2000s 479] with the animators…",
+      "from": "Comunicazione 2000s",
+      "to": "La comunicazione"
+    },
+    {
+      "issue": "41-rewrap",
+      "kind": "regex",
+      "optional": true,
+      "count": 1,
+      "flags": [
+        "ignorecase"
+      ],
+      "note": "Ricuci il paragrafo se il cambio pagina ha inserito una riga vuota.",
+      "pattern": "La comunicazione\\s*\\n\\s*\\n\\s*con gli animatori",
+      "replacement": "La comunicazione con gli animatori"
+    },
+    {
+      "issue": 44,
+      "kind": "exact",
+      "note": "'Rack' qui è lo stender/portabiti, non un armadio.",
+      "from": "il rack di vestiti",
+      "to": "lo stender di abiti"
+    },
+    {
+      "issue": 45,
+      "kind": "regex",
+      "expected": 1,
+      "note": "OCR grafico prima della vera didascalia di Kill Bill.",
+      "pattern": "C\\s+SSGNATURE\\s+\\.D\\.\\s+3924\\s+COSTUMISTA",
+      "replacement": ""
+    },
+    {
+      "issue": 46,
+      "kind": "exact",
+      "from": "come Nancy Steiner",
+      "to": "Nancy Steiner"
+    }
+  ],
+  "rejected": {
+    "11": "frase grammaticalmente valida",
+    "12": "frenetiche/efficienti concordano con 'linee di montaggio'",
+    "15": "'abbigliamento d'epoca' è fedele a period dress",
+    "18": "Beauty è maiuscolo anche nell'originale; irrilevante per TTS",
+    "21": "'spese' è il passato remoto corretto",
+    "24": "l'originale contiene una singola domanda coordinata",
+    "30": "'era apparso' corrisponde a had appeared",
+    "32": "l'asterisco è un separatore grafico dell'originale",
+    "36": "Han è Han Solo, non un errore linguistico",
+    "39": "'arriverà nelle sale' è corretto nel contesto",
+    "42": "peau de soie è il nome corretto del tessuto",
+    "43": "'Tengo un taccuino' è italiano corretto"
+  },
+  "structural_remaining": {
+    "issues": [
+      2,
+      9
+    ],
+    "token": "OPPOSITO",
+    "note": "Lasciati per la passata di layout/caption."
+  },
+  "forbidden": [
+    "speseò",
+    "i suoi antipatie",
+    "seta di seta",
+    "Lui indossava",
+    "Mrs. Miniver",
+    "OPPOSIZIONE",
+    "C SSGNATURE",
+    "hasorta",
+    "ever-proliferanti"
+  ],
+  "collapse_whitespace": true
+}

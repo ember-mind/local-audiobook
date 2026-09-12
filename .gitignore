@@ -7,7 +7,16 @@ run/*
 
 # Progetti-libro: sorgenti protetti da copyright, testi e audio intermedi.
 # Centinaia di MB, e niente qui è ricostruibile da git.
-books/
+books/*
+!books/*/
+books/*/*
+!books/*/work/
+books/*/work/*
+
+# Eccezione: le correzioni di un libro sono decisioni umane, non output
+# della pipeline. Nessuno le ricostruisce rieseguendo uno stadio, quindi
+# stanno in git anche se il resto di books/ no.
+!books/*/work/*_fixes.json
 
 # Reference voice: la clip in uso resta tracciata, cosi' un clone
 # fresco parte senza dover ricostruire la voce. Il materiale grezzo
