@@ -17,9 +17,14 @@ I capitoli sono **dati del libro**, come i marcatori di narrazione. In `book.jso
     ]
 
 `start_marker` è l'inizio del primo segmento del capitolo, copiato da
-`text/narration_ready_it.txt`. Poi:
+`text/narration_ready_it.txt`. Con la chiave presente **non serve nessun comando
+in più**: `export` scrive i capitoli da sé, subito dopo aver scaricato l'M4B.
 
     ./audiobook export nome-libro
+
+Il comando separato resta per riscriverli senza rifare l'export, per esempio dopo
+aver corretto un marcatore:
+
     ./audiobook chapters nome-libro
 
 ## Driving it
@@ -37,15 +42,19 @@ Vedere i paragrafi da cui ricavare i marcatori:
 ## Where it lives
 
 - `scripts/add_chapters.py`
-- `audiobook` — funzione `chapters_book`
+- `audiobook` — `chapters_book`, `has_chapters`, e la chiamata dentro `export_book`
 - `books/<slug>/book.json` — la chiave `chapters`
 - I tempi vengono dal manifest dell'assembly: `takes[].duration_ms` +
   `silence_after_ms`, sommati in ordine di `ordinal`
 
 ## Gotchas
 
-- **Va eseguito dopo `export`**, e va rieseguito dopo ogni nuovo `export`: l'export
-  riscrive il file e i capitoli spariscono.
+- **L'export cancella i capitoli** ogni volta che riscrive il file: per questo li
+  riscrive lui stesso alla fine. Chi lancia `add_chapters.py` a mano deve rifarlo
+  dopo ogni export.
+- Se i capitoli non si scrivono, l'export **non** si annulla: l'M4B resta sul disco
+  senza navigazione e il comando esce 1, dicendo quale marcatore non ha trovato.
+- Senza la chiave `chapters` l'export non fallisce: lo dice e va avanti.
 - **O tutti o nessuno.** Se un solo marcatore non trova il suo segmento, lo script
   non scrive niente e dice quali: un M4B con metà capitoli è peggio di uno senza.
 - I marcatori vanno confrontati **normalizzati**: lo stage `clean_source` di

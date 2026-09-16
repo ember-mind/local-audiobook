@@ -1082,9 +1082,15 @@ print(f"  {'✓' if cover.is_file() else '○'} cover · {cover.name}")
 narration = config.get("narration", {})
 has_markers = bool(
     str(narration.get("start_marker") or "").strip()
-    and str(narration.get("end_marker") or "").strip()
 )
-print(f"  {'✓' if has_markers else '○'} narration.start_marker / end_marker")
+print(f"  {'✓' if has_markers else '○'} narration.start_marker")
+
+chapters = config.get("chapters") or []
+
+if chapters:
+    print(f"  ✓ chapters · {len(chapters)}")
+else:
+    print("  ○ chapters · M4B senza navigazione")
 
 if exports:
     print()
@@ -1307,8 +1313,43 @@ generate_audio_book() {
 }
 
 
+# L'export produce un M4B senza capitoli: Pandrator li ricava dai segmenti
+# marcati come titolo, e da un PDF non ne esce nessuno. I capitoli si scrivono
+# subito dopo, nello stesso comando — un export che li lasciasse fuori darebbe
+# dieci ore di audio senza navigazione, e rifarlo cancella quelli di prima.
 export_book() {
-  run_audio_stage export_m4b.py "Export" export "${1:-}"
+  slug="${1:-}"
+
+  config="$(book_config "$slug" export)"
+
+  run_audio_stage export_m4b.py "Export" export "$slug"
+
+  if ! has_chapters "$config"; then
+    printf '\n'
+    printf 'Capitoli: nessuno in book.json, M4B senza navigazione.\n'
+    printf 'Per averli: la chiave "chapters" — vedi docs/features/chapters.md\n'
+    return 0
+  fi
+
+  if ! chapters_book "$slug"; then
+    printf '\n'
+    printf '✕ M4B esportato ma SENZA capitoli: vedi l errore qui sopra.\n'
+    printf '  Corretti i marcatori: ./audiobook chapters "%s"\n' "$slug"
+    return 1
+  fi
+}
+
+
+has_chapters() {
+  python3 - "$1" <<'PYCHAPTERS'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+
+raise SystemExit(0 if data.get("chapters") else 1)
+PYCHAPTERS
 }
 
 

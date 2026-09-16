@@ -57,9 +57,10 @@ Vedere se l'audio a monte è pronto:
   /sessions/<id>/output-assemblies` con la generation run completata.
 - **L'export non produce capitoli.** Pandrator li ricava dai segmenti marcati
   `chapter_marker`, e `prepare_text` marca solo quello che riconosce come titolo: da
-  un testo estratto da PDF escono tutti `paragraph`. I capitoli si scrivono dopo,
-  con `./audiobook chapters` — vedi [chapters](chapters.md). Rieseguire l'export
-  li cancella: va rifatto anche quello.
+  un testo estratto da PDF escono tutti `paragraph`. Per questo `export` chiama da
+  sé `chapters` alla fine, quando `book.json` ha la chiave — vedi
+  [chapters](chapters.md). Senza quella chiave l'M4B esce senza navigazione, e
+  l'export lo dice.
 - **Il bitrate richiesto non è quello che esce.** Con `192k` su una sorgente mono a
   24 kHz l'encoder AAC si ferma intorno ai 92 kbps: 10 ore stanno in ~394 MB. Non è
   un problema di qualità a questa frequenza, ma `book.json` dice una cosa e il file
