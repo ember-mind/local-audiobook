@@ -11,8 +11,9 @@ L'assemblaggio finale è una feature a parte: vedi [export](export.md).
 - `prepare-audio` — crea/riusa la sessione, carica `text/narration_ready_it.txt`,
   esegue clean_source e prepare_text con `max_sentence_length=600`
   → `work/pandrator/session.json`
-- `generate` — lancia la generazione; riprende dai segmenti mancanti se una run
-  precedente si è fermata a metà, e riprende il monitoraggio se un job è già attivo
+- `generate` — esegue `prepare-audio` (che non rifà niente se è già a posto), poi
+  lancia la generazione; riprende dai segmenti mancanti se una run precedente si è
+  fermata a metà, e riprende il monitoraggio se un job è già attivo
 - `sample` — un campione audio dal testo pronto, per ascoltare la voce
 - `chunking-ab` — A/B fra lunghezze di chunk diverse
 
@@ -21,7 +22,6 @@ L'assemblaggio finale è una feature a parte: vedi [export](export.md).
 Servono: servizi accesi, token Pandrator, `text/narration_ready_it.txt`.
 
     ./audiobook start
-    ./audiobook prepare-audio nome-libro
     ./audiobook generate nome-libro
     ./audiobook export nome-libro
 
@@ -82,9 +82,10 @@ Stato della sessione senza rilanciare niente:
 - **`max_sentence_length=600` non è arbitrario.** Scelto con `chunking-ab`: blocchi
   lunghi danno a Qwen abbastanza contesto per una prosodia narrativa. `generate`
   **rifiuta** una sessione preparata con un altro valore — è una guardia.
-- `generate` senza `prepare-audio` esce con "Sessione Pandrator non trovata": lo stato
-  vive in `work/pandrator/session.json`, cancellarlo perde il riferimento a una
-  sessione che su Pandrator continua a esistere.
+- `generate` esegue `prepare-audio` da sé: lanciarlo su un libro mai preparato
+  funziona. Lo stato vive in `work/pandrator/session.json`, e cancellarlo perde il
+  riferimento a una sessione che su Pandrator continua a esistere — `prepare-audio`
+  ne creerebbe una seconda.
 - Se un job è già in coda o in esecuzione, `generate` **non** ne crea un secondo:
   riprende il monitoraggio. Rilanciarlo dopo un Ctrl-C è sicuro.
 - Le scritture usano un header `Idempotency-Key` nuovo a ogni chiamata: un retry

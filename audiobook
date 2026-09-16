@@ -1308,8 +1308,15 @@ prepare_audio_book() {
 }
 
 
+# `prepare-audio` e' idempotente: se il testo e le impostazioni non sono
+# cambiati non risegmenta, lo dice e basta. Quindi `generate` lo chiama sempre,
+# invece di fallire con "Sessione Pandrator non trovata" a chi l'ha saltato.
 generate_audio_book() {
-  run_audio_stage pandrator_generate_audio.py "Generate" generate "${1:-}"
+  slug="${1:-}"
+
+  prepare_audio_book "$slug"
+
+  run_audio_stage pandrator_generate_audio.py "Generate" generate "$slug"
 }
 
 
