@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "created_at": "2026-08-21T17:36:00+02:00",
+  "slug": "dressed-a-century-of-hollywood-costume-design-landis-deborah-nadoolman",
+  "title": "Dressed: A Century of Hollywood Costume Design",
+  "author": "Deborah Nadoolman Landis",
+  "source": {
+    "file": "source/original.pdf",
+    "language": "en"
+  },
+  "translation": {
+    "enabled": true,
+    "target_language": "it",
+    "provider": "llama.cpp",
+    "base_url": "http://127.0.0.1:1234/v1",
+    "server_model": "google/gemma-4-12B-it-qat-q4_0-gguf:Q4_0",
+    "chunk_chars": 3500,
+    "context": "A richly illustrated nonfiction history and reference book about twentieth-century Hollywood costume design. The text discusses cinema history, costume designers, actors, film productions, studios, garments, fashion, textiles, historical dress, visual culture and the creative process of designing costumes for film.",
+    "terminology": {
+      "costume designer": "costumista",
+      "costume design": "costumistica cinematografica / design del costume, secondo il contesto",
+      "costume department": "reparto costumi",
+      "wardrobe department": "reparto costumi / guardaroba, secondo il contesto",
+      "fitting": "prova costume / prova dell'abito, secondo il contesto"
+    },
+    "instructions": "Treat names of people, studios and film productions with particular care. Do not translate established film titles unless the source itself provides or clearly implies an Italian title. Preserve historical garment names when an established Italian equivalent is not appropriate. Distinguish carefully between fashion design and costume design for cinema."
+  },
+  "voice": {
+    "engine": "qwen3-tts",
+    "language": "Italian",
+    "profile": "italiano",
+    "reference": "../../qwen/reference_it.wav"
+  },
+  "audio": {
+    "sentence_pause_ms": 250,
+    "paragraph_pause_ms": 700,
+    "roomtone": true,
+    "roomtone_dbfs": -58
+  },
+  "output": {
+    "format": "m4b",
+    "bitrate": "192k",
+    "language": "it",
+    "cover": "assets/cover.jpg"
+  },
+  "narration": {
+    "start_marker": "Prefazione di Deborah Nadoolman Landis",
+    "end_marker": "RINGRAZIAMENTI"
+  },
+  "chapters": [
+    {
+      "title": "Prefazione",
+      "start_marker": "Prefazione di Deborah Nadoolman Landis"
+    },
+    {
+      "title": "Gli albori",
+      "start_marker": "Durante gli anni '10, la frequentazione dei cinema crebbe in"
+    },
+    {
+      "title": "Anni '20",
+      "start_marker": "Negli anni '20, Hollywood era universalmente riconosciuta co"
+    },
+    {
+      "title": "Anni '30",
+      "start_marker": "«Non avete ancora sentito nulla!» Con quelle cinque parole p"
+    },
+    {
+      "title": "Anni '40",
+      "start_marker": "Fin dall'inizio, Lauren Bacall comprese che il suo stile sul"
+    },
+    {
+      "title": "Anni '50",
+      "start_marker": "«Davvero, negli anni '50, non potevo avere il mio prezioso b"
+    },
+    {
+      "title": "Anni '60",
+      "start_marker": "Negli anni '60, con il presidente Kennedy alla guida di un'a"
+    },
+    {
+      "title": "Anni '70",
+      "start_marker": "Negli anni '70, i grandi studi entrarono nel decennio afflit"
+    },
+    {
+      "title": "Anni '80",
+      "start_marker": "Negli anni '80, Hollywood aveva riacquistato il suo equilibr"
+    },
+    {
+      "title": "Anni '90",
+      "start_marker": "...venivano inclusi nel bilancio finale, erodendo ulteriorme"
+    },
+    {
+      "title": "Anni 2000",
+      "start_marker": "Negli anni 2000 e nel 2002, le vendite annuali dei DVD super"
+    }
+  ]
+}

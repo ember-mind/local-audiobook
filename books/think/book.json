@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "created_at": "2026-09-09T16:24:22+02:00",
+  "slug": "think",
+  "title": "Think: A Compelling Introduction to Philosophy",
+  "author": "Simon Blackburn",
+  "source": {
+    "file": "source/original.pdf",
+    "language": "en",
+    "body": {
+      "start_marker": "Introduction This book is for people who want to think",
+      "end_marker": "Notes 1. KNOWLEDGE"
+    }
+  },
+  "translation": {
+    "enabled": true,
+    "target_language": "it",
+    "provider": "llama.cpp",
+    "base_url": "http://127.0.0.1:1234/v1",
+    "server_model": "google/gemma-4-12B-it-qat-q4_0-gguf:Q4_0",
+    "chunk_chars": 3500,
+    "context": "An introductory philosophy book for the general reader, written by an analytic philosopher. It works through knowledge, scepticism, the mind-body problem, free will, personal identity, God, reasoning and logic, the external world, and ethics, discussing Descartes, Hume, Kant, Berkeley, Locke, Leibniz, Wittgenstein and others. The prose is argumentative, precise and often ironic: thought experiments, dialectical objections and replies, and technical terms used with exact meaning.",
+    "terminology": {
+      "mind": "mente",
+      "belief": "credenza",
+      "justification": "giustificazione",
+      "knowledge": "conoscenza",
+      "self": "io / sé, secondo il contesto",
+      "free will": "libero arbitrio",
+      "soul": "anima",
+      "reason": "ragione (facoltà) / motivo (giustificazione), secondo il contesto",
+      "argument": "argomentazione (filosofica), non 'discussione'",
+      "sound argument": "argomentazione fondata",
+      "valid": "valido (in senso logico)",
+      "premise": "premessa",
+      "entails": "implica",
+      "evil demon": "genio maligno",
+      "the external world": "il mondo esterno",
+      "sense data": "dati sensoriali",
+      "substance": "sostanza",
+      "personal identity": "identità personale",
+      "utilitarianism": "utilitarismo",
+      "thought experiment": "esperimento mentale",
+      "common sense": "senso comune"
+    },
+    "instructions": "Philosophical terms are technical: translate them with their established Italian philosophical equivalents, consistently across the whole book, never with everyday synonyms. Quote established Italian renderings of classic formulas where they exist (e.g. 'Cogito, ergo sum' left in Latin, 'genio maligno' for Descartes's evil demon). Keep the author's ironic, conversational register: he addresses the reader directly and uses humour; do not flatten it into academic prose. Preserve the structure of arguments — premises, objections, replies — without paraphrasing or shortening. Do not translate names of philosophers or work titles that are conventionally cited in the original, but use the established Italian title when one exists (e.g. 'Meditazioni metafisiche')."
+  },
+  "narration": {
+    "start_marker": "Introduzione",
+    "end_marker": "EOF"
+  },
+  "chapters": [
+    {
+      "title": "Introduzione",
+      "start_marker": "Introduzione"
+    },
+    {
+      "title": "1. Conoscenza",
+      "start_marker": "Capitolo Uno Conoscenza"
+    },
+    {
+      "title": "2. Mente",
+      "start_marker": "Capitolo due Mente"
+    },
+    {
+      "title": "3. Libero arbitrio",
+      "start_marker": "Capitolo Tre"
+    },
+    {
+      "title": "4. L'io",
+      "start_marker": "Capitolo quattro L'io"
+    },
+    {
+      "title": "5. Dio",
+      "start_marker": "Capitolo cinque Dio"
+    },
+    {
+      "title": "6. Ragionamento",
+      "start_marker": "Capitolo Sei Ragionamento"
+    },
+    {
+      "title": "7. Il mondo",
+      "start_marker": "Capitolo sette"
+    },
+    {
+      "title": "8. Cosa fare",
+      "start_marker": "Capitolo otto"
+    },
+    {
+      "title": "Addio",
+      "start_marker": "ADDIO"
+    }
+  ],
+  "voice": {
+    "engine": "qwen3-tts",
+    "language": "Italian",
+    "profile": "italiano",
+    "reference": "../../qwen/reference_it.wav"
+  },
+  "output": {
+    "format": "m4b",
+    "bitrate": "192k",
+    "language": "it",
+    "cover": "assets/cover.jpg"
+  }
+}

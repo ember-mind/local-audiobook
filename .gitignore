@@ -13,9 +13,10 @@ books/*/*
 !books/*/work/
 books/*/work/*
 
-# Eccezione: le correzioni di un libro sono decisioni umane, non output
-# della pipeline. Nessuno le ricostruisce rieseguendo uno stadio, quindi
-# stanno in git anche se il resto di books/ no.
+# Eccezione: la configurazione e le correzioni di un libro sono decisioni
+# umane, non output della pipeline. Nessuno le ricostruisce rieseguendo uno
+# stadio, quindi stanno in git anche se il resto di books/ no.
+!books/*/book.json
 !books/*/work/*_fixes.json
 
 # Reference voice: la clip in uso resta tracciata, cosi' un clone
