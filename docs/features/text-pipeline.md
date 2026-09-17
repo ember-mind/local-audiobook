@@ -66,6 +66,11 @@ Chiamare uno script direttamente (serve il python di Pandrator, non `python3`):
 
 ## Gotchas
 
+- `prepare` propaga l'exit code dello stadio fallito e non avvia gli stadi
+  successivi. Anche `finalize` interrompe la catena se fallisce la pulizia:
+  non valida un vecchio output. Queste garanzie sono verificate senza modelli
+  da `tests/test_cli_pipeline.py`.
+
 - **`prepare` rilancia `extract` e `clean` ogni volta.** Sono idempotenti solo se il
   taglio del corpo sta in `book.json`. Modificare `source_en.txt` a mano funziona una
   volta sola: alla `prepare` successiva `clean` lo riscrive intero, l'hash non torna e

@@ -54,6 +54,12 @@ Controlli senza CLI, per un agente che non vuole aprire il browser:
 
 ## Gotchas
 
+- `setup.sh` usa l'adapter direttamente dal repository e verifica audio e
+  trascrizione dichiarati in `config/voice.json` (override:
+  `AUDIOBOOK_VOICE_CONFIG`). Non copia più la vecchia `reference_it.wav`,
+  assente dai clone nuovi. Il bootstrap senza modelli è coperto da
+  `tests/test_setup.py`; questi test non certificano l'installazione dei modelli.
+
 - **Senza LaunchAgent l'adapter muore con la shell che lo ha acceso.** `nohup`
   protegge dal SIGHUP, non dalla pulizia del process group: chiudere il terminale,
   o un task in background che finisce, si è già portato via Qwen a metà lavoro.
