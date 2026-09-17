@@ -98,9 +98,20 @@ Chiamare uno script direttamente (serve il python di Pandrator, non `python3`):
 - Gli stadi non verificano il proprio input: `translate` senza `clean` fallisce con
   un errore su file mancante, non con un messaggio sull'ordine giusto. `info` è il
   modo di vedere l'ordine reale.
-- `translate` **scrive** in `book.json` (`chunks`, `server_model`): la config è anche
-  stato. Cambiando `chunk_chars` a metà libro il numero di chunk non torna e serve
-  `--reset`.
+- Il checkpoint di `translate` (versione 3) include l'hash del prompt effettivo,
+  quindi anche contesto, glossario e istruzioni per libro. Se cambiano questi dati,
+  sorgente, modello o chunking, il riuso viene bloccato prima di avviare il modello.
+  La configurazione viene letta da `book.json`, non riscritta.
+- **Migrazione conservativa:** i checkpoint versione 2 non contengono il prompt
+  originale e non sono adottati automaticamente. Il comando si ferma senza
+  modificare chunk o output. Conservare una copia del lavoro prima di scegliere
+  `./audiobook translate nome-libro --reset`: il reset ritraduce tutto e può costare
+  ore. Non è necessario alcun reset per continuare ad ascoltare/esportare audio
+  esistente. I checkpoint già versione 3 e invariati si riusano normalmente.
+- Una risposta LLM deve terminare con `finish_reason=stop` e contenere testo:
+  risposte troncate (`length`), filtrate o malformate non diventano chunk completati.
+  Un backend compatibile deve fornire questo campo. Queste garanzie sono coperte
+  da `tests/test_translation_integrity.py`, senza chiamate al modello.
 - `translate` avvia da sé il server llama.cpp su `:1234` se non c'è. Un modello già
   caricato ma diverso da `server_model` viene usato comunque.
 - `ui_compact` filtra l'output degli stadi con `awk`, riconoscendo l'intestazione
