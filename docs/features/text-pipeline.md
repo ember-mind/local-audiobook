@@ -5,7 +5,7 @@ comando proprio, più `prepare` che li concatena con una UI a step.
 
 ## Sub-features
 
-- `extract` — PDF/EPUB/TXT → `text/source_raw.txt`
+- `extract` — PDF/TXT → `text/source_raw.txt`
 - `clean` — de-hyphenation, header/footer, note → `text/source_en.txt` + `work/cleaning_report.txt`;
   con `source.body` in `book.json` taglia anche front matter e coda (Note, bibliografia)
 - `translate` — chunk → LLM locale → `text/book_it.txt`, con checkpoint per riprendere

@@ -20,7 +20,7 @@ directory se c'e' un symlink nel PATH:
 Lo script risolve il symlink prima di calcolare `ROOT`, quindi trova `books/` anche
 lanciato da fuori.
 
-    ./audiobook new ~/Downloads/libro.pdf     # PDF, EPUB o TXT
+    ./audiobook new ~/Downloads/libro.pdf     # PDF o TXT
     ./audiobook books
     ./audiobook info nome-libro
 

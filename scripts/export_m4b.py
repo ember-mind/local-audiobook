@@ -379,6 +379,10 @@ def main():
 
     state["export_artifact_id"] = artifact_id
     state["export_output"] = str(destination.relative_to(book))
+    # Provenienza del file su disco: i capitoli si scrivono su questo M4B, e i
+    # tempi vengono dal manifest di un assembly. Devono essere lo stesso.
+    state["export_assembly_id"] = state.get("assembly_id")
+    state["export_sha256"] = sha256_file(destination)
     save(state_path, state)
 
     size_mb = destination.stat().st_size / (1024 * 1024)

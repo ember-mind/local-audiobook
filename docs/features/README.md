@@ -14,7 +14,7 @@ del codice: il codice resta la memoria vera.
 | [services](services.md) | Accendere e spegnere i tre servizi locali (Qwen, Pandrator server, worker) | `audiobook`, `qwen/qwen_pandrator_server.py` |
 | [doctor](doctor.md) | Verificare che venv, modello, voce, token, patch e servizi siano a posto | `audiobook` (`run_doctor`) |
 | [books](books.md) | Creare, ispezionare e sfoltire progetti-libro | `audiobook` (`new_book`, `book_info`, `list_books`), `scripts/prune_work.py` |
-| [text-pipeline](text-pipeline.md) | Da PDF/EPUB/TXT a traduzione italiana validata | `scripts/extract_book.py`, `clean_book.py`, `translate_book.py`, `finalize_translation.py`, `validate_translation.py` |
+| [text-pipeline](text-pipeline.md) | Da PDF/TXT a traduzione italiana validata | `scripts/extract_book.py`, `clean_book.py`, `translate_book.py`, `finalize_translation.py`, `validate_translation.py` |
 | [proofread](proofread.md) | QC linguistico con LLM e applicazione delle correzioni | `scripts/language_qc.py`, `resolve_language_qc.py`, `apply_review_fixes.py` |
 | [narration](narration.md) | Ritagliare il corpo del libro e pulire i residui di impaginazione | `scripts/build_narration.py`, `clean_layout.py`, `finalize_layout.py` |
 | [audio](audio.md) | Sessione Pandrator, generazione TTS, prove di chunking | `scripts/pandrator_prepare_audio.py`, `pandrator_generate_audio.py`, `qwen_sample.py`, `qwen_chunking_ab.py` |

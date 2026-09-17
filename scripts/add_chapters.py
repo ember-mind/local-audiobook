@@ -29,6 +29,10 @@ import sys
 import tempfile
 import urllib.request
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from pandrator_state import save_json, sha256_file
+
 
 ROOT = Path(__file__).resolve().parent.parent
 API = "http://127.0.0.1:8097/api/v1"
@@ -73,7 +77,36 @@ def all_segments(session_id):
     return collected
 
 
-def take_durations(session_id):
+def check_provenance(state, target):
+    """I capitoli vanno scritti sull'M4B che quell'assembly ha prodotto.
+
+    `output-assemblies/latest` e' l'unico modo di leggere il manifest: se nel
+    frattempo e' stato montato un altro assembly, i suoi tempi non descrivono
+    piu' il file sul disco. Lo stato dell'export dice quale era il suo.
+    """
+
+    expected_sha = state.get("export_sha256")
+    expected_assembly = state.get("export_assembly_id")
+
+    if not expected_sha or not expected_assembly:
+        print(
+            "○ Export precedente alla tracciatura della provenienza: "
+            "i tempi non sono verificabili.\n"
+            "  Per averla, rifare ./audiobook export."
+        )
+        return None
+
+    if sha256_file(target) != expected_sha:
+        raise SystemExit(
+            f"{target.name} non e' il file prodotto dall'ultimo export "
+            "(hash diverso).\n"
+            "Rifare l'export prima di scrivere i capitoli."
+        )
+
+    return expected_assembly
+
+
+def take_durations(session_id, expected_assembly=None):
     """segment_id → (durata, silenzio) dal manifest dell'assembly.
 
     Sono le durate vere dei file montati: sommarle ricostruisce esattamente
@@ -82,6 +115,14 @@ def take_durations(session_id):
 
     latest = api(f"/sessions/{session_id}/output-assemblies/latest")
     item = latest.get("item") or {}
+
+    if expected_assembly and str(item.get("id")) != str(expected_assembly):
+        raise SystemExit(
+            "L'ultimo assembly non e' quello da cui viene l'M4B sul disco.\n"
+            f"  sul disco: {expected_assembly}\n"
+            f"  ultimo:    {item.get('id')}\n"
+            "I tempi apparterrebbero a un altro montaggio: rifare l'export."
+        )
 
     if str(item.get("status")) != "completed":
         raise SystemExit(
@@ -143,10 +184,27 @@ def locate(chapters, segments, durations):
     starts_ms = {}
     elapsed = 0
 
+    missing = []
+
     for segment in segments:
-        starts_ms[str(segment.get("id"))] = elapsed
-        duration, silence = durations.get(str(segment.get("id")), (0, 0))
+        segment_id = str(segment.get("id"))
+        starts_ms[segment_id] = elapsed
+
+        # Una durata mancante trattata come zero sposta indietro tutti i
+        # capitoli successivi, in silenzio: meglio non scrivere niente.
+        if segment_id not in durations:
+            missing.append(segment.get("ordinal"))
+            continue
+
+        duration, silence = durations[segment_id]
         elapsed += duration + silence
+
+    if missing:
+        raise SystemExit(
+            f"Il manifest dell'assembly non ha la durata di {len(missing)} "
+            f"segmenti (primo: ordinal {missing[0]}).\n"
+            "I tempi dei capitoli sarebbero sbagliati: nessun capitolo scritto."
+        )
 
     located = []
     problems = []
@@ -190,6 +248,27 @@ def locate(chapters, segments, durations):
     return located, problems
 
 
+def ffmetadata_escape(value):
+    """ffmetadata usa = ; # \\ e newline come sintassi: vanno protetti.
+
+    Senza questo un titolo con un punto e virgola tronca la riga e un titolo
+    su due righe perde la seconda: il file resta valido e il capitolo esce
+    sbagliato, che e' il modo peggiore di fallire.
+    """
+
+    out = []
+
+    for char in str(value):
+        if char in "=;#\\":
+            out.append("\\" + char)
+        elif char == "\n":
+            out.append("\\\n")
+        else:
+            out.append(char)
+
+    return "".join(out)
+
+
 def write_metadata_file(located, total_ms, path):
     """Il formato ffmetadata: un blocco [CHAPTER] per capitolo."""
 
@@ -210,7 +289,7 @@ def write_metadata_file(located, total_ms, path):
             "TIMEBASE=1/1000",
             f"START={start_ms}",
             f"END={end_ms}",
-            f"title={title}",
+            f"title={ffmetadata_escape(title)}",
         ]
 
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -265,8 +344,11 @@ def main():
     print()
     print(f"Capitoli dichiarati: {len(chapters)}")
 
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    expected_assembly = check_provenance(state, target)
+
     segments = all_segments(session_id)
-    durations, total_ms = take_durations(session_id)
+    durations, total_ms = take_durations(session_id, expected_assembly)
 
     print(f"Segmenti: {len(segments)} · durata {human(total_ms)}")
     print()
@@ -338,6 +420,13 @@ def main():
         # Sostituzione solo a file completo: un'interruzione non lascia
         # l'audiolibro a metà.
         staged.replace(target)
+
+    # Scrivere i capitoli cambia il file: senza aggiornare l'impronta, il giro
+    # successivo lo scambierebbe per un M4B estraneo all'export.
+    if state.get("export_sha256"):
+        state["export_sha256"] = sha256_file(target)
+        state["chapters_written"] = len(located)
+        save_json(state_path, state)
 
     print()
     print(f"✓ {len(located)} capitoli scritti")

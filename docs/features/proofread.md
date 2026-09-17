@@ -110,6 +110,13 @@ Leggere il verdetto e il resoconto:
   predicato φ è sparito da tutte le formule, in inglese come in italiano: il libro
   però lo nomina a parole ("la lettera greca phi"), e da lì si ricostruisce. Vale la
   pena controllare l'inglese prima di dare la colpa alla traduzione.
+- **Una risposta senza il campo `issues` non è un testo pulito.** Prima
+  `clean_json("{}")` restituiva `{"issues": []}`: un modello che sbagliava il
+  formato produceva un capitolo dichiarato senza errori. Ora è un errore, e
+  rientra nei retry dello stadio.
+- La cache per chunk in `work/language_qc/` è legata a testo + prompt + modello +
+  versione del validatore. Un verdetto salvato prima di questa modifica non viene
+  riusato: lo stadio lo rifà.
 - La whitelist e le decisioni sono **dati del libro**, non codice: un libro nuovo
   parte senza whitelist e con tutti gli issue in revisione. Non si aggiungono
   correzioni dentro gli script.

@@ -194,14 +194,28 @@ def clean_json(raw):
             "Il risultato del proofreading deve essere un oggetto JSON."
         )
 
-    issues = result.get("issues")
-
-    if issues is None:
-        result["issues"] = []
-    elif not isinstance(issues, list):
+    # Una risposta senza il campo richiesto non e' un verdetto "nessun
+    # errore": e' una risposta non valida. Confonderle significa dichiarare
+    # pulito un capitolo che il modello non ha mai controllato davvero.
+    if "issues" not in result:
         raise ValueError(
-            'Il campo "issues" deve essere una lista.'
+            'Risposta senza il campo "issues": il modello non ha prodotto '
+            "un verdetto."
         )
+
+    issues = result["issues"]
+
+    if not isinstance(issues, list):
+        raise ValueError(
+            'Il campo "issues" deve essere una lista, non '
+            f"{type(issues).__name__}."
+        )
+
+    for position, issue in enumerate(issues, 1):
+        if not isinstance(issue, dict):
+            raise ValueError(
+                f"Issue #{position} non e' un oggetto JSON."
+            )
 
     return result
 
@@ -418,9 +432,29 @@ def inspect_chunk(
     }
 
 
+# Cambiando prompt o modello un verdetto in cache descrive un controllo che
+# non e' piu' quello che si sta chiedendo. Sale quando cambia la validazione.
+VALIDATOR_VERSION = 2
+
+
 def fingerprint(text):
     return hashlib.sha256(
         text.encode("utf-8")
+    ).hexdigest()
+
+
+def qc_fingerprint(text, model):
+    return hashlib.sha256(
+        json.dumps(
+            {
+                "text": text,
+                "system_prompt": SYSTEM_PROMPT,
+                "model": model,
+                "validator": VALIDATOR_VERSION,
+            },
+            sort_keys=True,
+            ensure_ascii=False,
+        ).encode("utf-8")
     ).hexdigest()
 
 
@@ -525,6 +559,7 @@ def main():
             )
 
             piece_hash = fingerprint(piece)
+            piece_qc_hash = qc_fingerprint(piece, model)
 
             cached = None
 
@@ -540,8 +575,8 @@ def main():
 
             if (
                 cached
-                and cached.get("source_hash")
-                == piece_hash
+                and cached.get("source_hash") == piece_hash
+                and cached.get("qc_hash") == piece_qc_hash
             ):
                 result = cached["result"]
                 print(
@@ -563,6 +598,7 @@ def main():
                     json.dumps(
                         {
                             "source_hash": piece_hash,
+                            "qc_hash": piece_qc_hash,
                             "result": result,
                         },
                         indent=2,

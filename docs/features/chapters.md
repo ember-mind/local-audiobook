@@ -49,6 +49,17 @@ Vedere i paragrafi da cui ricavare i marcatori:
 
 ## Gotchas
 
+- **I capitoli valgono per un montaggio preciso.** `export` registra in
+  `session.json` da quale assembly viene il file (`export_assembly_id`) e
+  l'impronta del file scaricato (`export_sha256`); `chapters` rifiuta di scrivere
+  se l'M4B sul disco non è quello, o se nel frattempo Pandrator ha montato un
+  assembly più recente. Un export fatto prima di questa tracciatura lo dice e
+  procede senza verifica.
+- **Una durata mancante ferma lo stadio.** Prima un segmento senza durata nel
+  manifest valeva zero e spostava indietro, in silenzio, tutti i capitoli
+  successivi.
+- I titoli passano da un escaping ffmetadata: `=`, `;`, `#`, `\` e gli a capo
+  sono sintassi in quel formato, e un titolo che li contiene usciva troncato.
 - **L'export cancella i capitoli** ogni volta che riscrive il file: per questo li
   riscrive lui stesso alla fine. Chi lancia `add_chapters.py` a mano deve rifarlo
   dopo ogni export.

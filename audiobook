@@ -718,10 +718,12 @@ PYNEWPATH
   extension="${source##*.}"
 
   case "$(printf '%s' "$extension" | tr '[:upper:]' '[:lower:]')" in
-    pdf|txt|epub)
+    pdf|txt)
       ;;
     *)
-      die "Formato non supportato: .$extension (usa PDF, EPUB o TXT)"
+      die "Formato non supportato: .$extension (usa PDF o TXT).
+EPUB non e' implementato in extract_book.py: accettarlo qui vorrebbe dire
+fallire piu' tardi, a libro gia' creato."
       ;;
   esac
 
