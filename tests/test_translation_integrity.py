@@ -12,7 +12,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import translate_book as translate
 
 
-class TranslationIntegrityTests(unittest.TestCase):
+class TranslationFixture(unittest.TestCase):
+    """Libro finto su disco: solo fixture, nessun test."""
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -36,6 +38,8 @@ class TranslationIntegrityTests(unittest.TestCase):
                 patch.object(translate, "translate_chunk", return_value="Un paragrafo originale."):
             self.run_main()
 
+
+class TranslationIntegrityTests(TranslationFixture):
     def test_unchanged_configuration_reuses_chunks(self):
         self.prepare_checkpoint()
         with patch.object(translate, "start_llama_server", return_value=(None, "test-model")), \
@@ -112,3 +116,64 @@ class TranslationIntegrityTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LegacyCheckpointAdoptionTests(TranslationFixture):
+    """Version 2 checkpoints: block by default, adopt only when told to."""
+
+    def downgrade_to_version_2(self):
+        data = json.loads(self.checkpoint.read_text(encoding="utf-8"))
+        data["version"] = 2
+        data.pop("system_prompt_sha256")
+        self.checkpoint.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+    def run_main_with(self, *flags):
+        argv = ["translate_book.py", str(self.config), *flags]
+        with patch.object(sys, "argv", argv), contextlib.redirect_stdout(io.StringIO()):
+            translate.main()
+
+    def test_version_2_blocks_and_keeps_the_translated_chunks(self):
+        self.prepare_checkpoint()
+        self.downgrade_to_version_2()
+        before = (self.chunks / "chunk-0001.txt").read_bytes()
+        stored = self.checkpoint.read_bytes()
+
+        with patch.object(translate, "start_llama_server") as start:
+            with self.assertRaisesRegex(SystemExit, "--adopt-checkpoint"):
+                self.run_main_with()
+            start.assert_not_called()
+
+        self.assertEqual(self.checkpoint.read_bytes(), stored)
+        self.assertEqual((self.chunks / "chunk-0001.txt").read_bytes(), before)
+
+    def test_adopting_stamps_the_current_prompt_and_reuses_the_work(self):
+        self.prepare_checkpoint()
+        self.downgrade_to_version_2()
+        before = (self.chunks / "chunk-0001.txt").read_bytes()
+
+        with patch.object(translate, "start_llama_server", return_value=(None, "test-model")), \
+                patch.object(translate, "translate_chunk") as call:
+            self.run_main_with("--adopt-checkpoint")
+            call.assert_not_called()
+
+        data = json.loads(self.checkpoint.read_text(encoding="utf-8"))
+        self.assertEqual(data["version"], 3)
+        self.assertEqual(
+            data["system_prompt_sha256"],
+            translate.sha256(translate.SYSTEM_PROMPT),
+        )
+        self.assertEqual((self.chunks / "chunk-0001.txt").read_bytes(), before)
+
+    def test_adoption_does_not_cover_a_changed_source(self):
+        self.prepare_checkpoint()
+        self.downgrade_to_version_2()
+        (self.book / "text/source_en.txt").write_text("A different paragraph.")
+
+        with patch.object(translate, "start_llama_server") as start:
+            with self.assertRaisesRegex(SystemExit, "--reset"):
+                self.run_main_with("--adopt-checkpoint")
+            start.assert_not_called()
+
+        self.assertEqual(
+            json.loads(self.checkpoint.read_text(encoding="utf-8"))["version"], 2
+        )

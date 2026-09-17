@@ -388,11 +388,13 @@ def assemble(chunks_dir, total):
 def main():
     if len(sys.argv) < 2:
         raise SystemExit(
-            "Uso: translate_book.py /path/to/book.json [--reset]"
+            "Uso: translate_book.py /path/to/book.json "
+            "[--reset] [--adopt-checkpoint]"
         )
 
     config_path = Path(sys.argv[1]).resolve()
     reset = "--reset" in sys.argv[2:]
+    adopt = "--adopt-checkpoint" in sys.argv[2:]
 
     if not config_path.is_file():
         raise SystemExit(
@@ -487,6 +489,55 @@ def main():
             "chunk_chars",
             "chunks",
         )
+
+        # Un checkpoint versione 2 non registra il prompt: non si puo'
+        # dimostrare con quali regole sono stati tradotti i chunk. Se tutto il
+        # resto coincide, chi conosce la storia del libro puo' dichiararlo con
+        # --adopt-checkpoint, invece di ritradurre ore di lavoro. E' una
+        # attestazione umana, non una verifica: il default resta il blocco.
+        adoptable = (
+            old.get("version") == 2
+            and "system_prompt_sha256" not in old
+            and all(
+                old.get(key) == checkpoint_data.get(key)
+                for key in (
+                    "source_sha256",
+                    "server_model",
+                    "chunk_chars",
+                    "chunks",
+                )
+            )
+        )
+
+        if adoptable and adopt:
+            checkpoint.write_text(
+                json.dumps(checkpoint_data, indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+            old = dict(checkpoint_data)
+
+            print(
+                "✓ Checkpoint versione 2 adottato come versione 3.\n"
+                "  I chunk esistenti restano, e da ora valgono per il prompt "
+                "attuale di book.json.\n"
+                "  Se il glossario o le istruzioni sono cambiati dopo averli "
+                "tradotti, quei chunk seguono ancora le regole vecchie."
+            )
+
+        if adoptable and not adopt:
+            raise SystemExit(
+                "Checkpoint versione 2: registra sorgente, modello e chunking, "
+                "ma non il prompt.\n"
+                f"Tutto il resto coincide, e i {old.get('chunks')} chunk "
+                "tradotti sono intatti.\n\n"
+                "  Se il prompt di traduzione in book.json non e' cambiato "
+                "da quando sono stati\n"
+                "  tradotti, adotta il lavoro esistente:\n"
+                f"    ./audiobook translate {book.name} --adopt-checkpoint\n\n"
+                "  Se invece l'hai cambiato, ritraduci (ore di lavoro):\n"
+                f"    ./audiobook translate {book.name} --reset"
+            )
 
         if any(
             old.get(key) != checkpoint_data.get(key)

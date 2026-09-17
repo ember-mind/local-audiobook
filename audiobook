@@ -1201,10 +1201,10 @@ translate_book() {
   slug="${1:-}"
   option="${2:-}"
 
-  if [ "$option" = "--reset" ]; then
-    run_stage translate_book.py "Translate" translate "$slug" --reset
+  if [ "$option" = "--reset" ] || [ "$option" = "--adopt-checkpoint" ]; then
+    run_stage translate_book.py "Translate" translate "$slug" "$option"
   elif [ -n "$option" ]; then
-    die "Opzione non riconosciuta: $option (solo --reset)"
+    die "Opzione non riconosciuta: $option (--reset, --adopt-checkpoint)"
   else
     run_stage translate_book.py "Translate" translate "$slug"
   fi

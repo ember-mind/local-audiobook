@@ -104,14 +104,26 @@ Chiamare uno script direttamente (serve il python di Pandrator, non `python3`):
   La configurazione viene letta da `book.json`, non riscritta.
 - **Migrazione conservativa:** i checkpoint versione 2 non contengono il prompt
   originale e non sono adottati automaticamente. Il comando si ferma senza
-  modificare chunk o output. Conservare una copia del lavoro prima di scegliere
-  `./audiobook translate nome-libro --reset`: il reset ritraduce tutto e può costare
-  ore. Non è necessario alcun reset per continuare ad ascoltare/esportare audio
-  esistente. I checkpoint già versione 3 e invariati si riusano normalmente.
+  modificare chunk o output. I checkpoint già versione 3 e invariati si riusano
+  normalmente. Non serve nessuna migrazione per esportare o riascoltare audio
+  già prodotto.
+- Se sorgente, modello, chunking e numero di chunk coincidono e manca solo il
+  prompt, si può **dichiarare** che il lavoro esistente vale per il prompt attuale:
+
+      ./audiobook translate nome-libro --adopt-checkpoint
+
+  È un'attestazione umana, non una verifica: il file registra l'hash del prompt di
+  oggi sui chunk di ieri. Va usato solo se `translation.context`, `terminology` e
+  `instructions` non sono cambiati da quando il libro è stato tradotto. In caso
+  contrario serve `--reset`, che ritraduce tutto e costa ore.
 - Una risposta LLM deve terminare con `finish_reason=stop` e contenere testo:
   risposte troncate (`length`), filtrate o malformate non diventano chunk completati.
   Un backend compatibile deve fornire questo campo. Queste garanzie sono coperte
   da `tests/test_translation_integrity.py`, senza chiamate al modello.
+- I test importano `translate_book.py`, che richiede `requests`: vanno lanciati con
+  il python di Pandrator, non con `python3` di sistema.
+
+      $PANDRATOR_PY -m unittest discover -s tests
 - `translate` avvia da sé il server llama.cpp su `:1234` se non c'è. Un modello già
   caricato ma diverso da `server_model` viene usato comunque.
 - `ui_compact` filtra l'output degli stadi con `awk`, riconoscendo l'intestazione
