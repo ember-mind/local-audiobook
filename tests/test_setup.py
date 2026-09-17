@@ -24,7 +24,8 @@ class SetupTests(unittest.TestCase):
         uv = self.bin / "uv"
         uv.write_text("#!/bin/sh\nexit 0\n")
         uv.chmod(0o755)
-        for name in ("Pandrator", "Qwen"):
+        # Keep the external venv distinct from repo qwen/ on case-insensitive macOS.
+        for name in ("Pandrator", "external-qwen"):
             home = self.root / name
             interpreter = home / ".venv/bin/python"
             interpreter.parent.mkdir(parents=True)
@@ -35,7 +36,7 @@ class SetupTests(unittest.TestCase):
         assembler.write_text("# _room_tone_pcm: already patched test fixture\n")
         self.env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ["PATH"],
                         PANDRATOR_HOME=str(self.root / "Pandrator"),
-                        QWEN_HOME=str(self.root / "Qwen"))
+                        QWEN_HOME=str(self.root / "external-qwen"))
 
     def setup(self):
         return subprocess.run(["bash", str(self.root / "setup.sh")], env=self.env,
@@ -45,7 +46,7 @@ class SetupTests(unittest.TestCase):
         self.assertFalse((self.root / "qwen/reference_it.wav").exists())
         result = self.setup()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertFalse((self.root / "Qwen/qwen_pandrator_server.py").exists())
+        self.assertFalse((self.root / "external-qwen/qwen_pandrator_server.py").exists())
         self.assertTrue((self.root / "Pandrator/roomtone.json").exists())
 
     def test_missing_configured_transcript_is_reported(self):
