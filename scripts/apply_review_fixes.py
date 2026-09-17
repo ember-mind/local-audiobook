@@ -9,8 +9,15 @@ del libro e non devono vivere in questo script.
 
     text/narration_final_it.txt  →  text/narration_reviewed_it.txt
 
-Senza file di decisioni il testo passa invariato: un libro il cui QC non
-ha richiesto interventi attraversa comunque lo stadio.
+Nessuna issue del QC puo' restare senza risposta: o la stringa contestata
+non e' piu' nel testo, o compare in "rejected" con un motivo. Altrimenti lo
+stadio non scrive ed esce 2, e il testo di narrazione resta quello di
+resolve-qc. Senza issue aperte il testo passa invariato anche senza file di
+decisioni.
+
+Insieme all'output viene scritto work/language_qc_approval.json: il verdetto
+a cui si riferisce, gli hash del testo prima e dopo, quante issue e quali
+respinte. Cambiando il testo quell'approvazione non vale piu'.
 
 Formato di work/language_qc_manual_fixes.json:
 
@@ -47,6 +54,7 @@ null) significa "quante capitano": va usato solo per le ricuciture
 opportunistiche, tipo un page break che può esserci o non esserci.
 """
 
+from datetime import datetime
 from pathlib import Path
 import hashlib
 import json
@@ -177,6 +185,106 @@ def apply_operation(text, operation, errors):
     return text, record
 
 
+def load_issues(book):
+    """Il verdetto del QC, o lista vuota se non c'e'."""
+
+    path = book / "work" / "language_qc.json"
+
+    if not path.is_file():
+        return [], None
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    return (
+        data.get("issues") or [],
+        sha256(path.read_text(encoding="utf-8")),
+    )
+
+
+def pending_issues(issues, text, rejected):
+    """Issue di cui non risulta nessuna decisione.
+
+    Una issue e' chiusa quando il testo non contiene piu' la stringa che il
+    QC contestava — l'abbia sistemata una correzione sicura, una operazione
+    manuale o un rifacimento della frase — oppure quando e' respinta con una
+    motivazione. Tutto il resto e' lavoro che nessuno ha ancora guardato, e
+    un file chiamato "reviewed" non deve poterlo nascondere.
+    """
+
+    keys = {str(key) for key in rejected}
+    pending = []
+
+    for number, issue in enumerate(issues, 1):
+        old_text = str(issue.get("from") or "")
+
+        if not old_text or old_text not in text:
+            continue
+
+        if str(number) in keys or old_text in keys:
+            continue
+
+        pending.append((number, issue))
+
+    return pending
+
+
+def report_pending(pending, decisions_path):
+    print()
+    print(f"◈ {len(pending)} issue senza decisione")
+    print()
+
+    for number, issue in pending[:20]:
+        print(f"  {number:3d}. {issue.get('from', '')}")
+        print(f"       → {issue.get('to', '')}")
+
+        reason = str(issue.get("reason") or "").strip()
+
+        if reason:
+            print(f"       {reason[:100]}")
+
+    if len(pending) > 20:
+        print(f"  … e altre {len(pending) - 20}")
+
+    print()
+    print("Per ognuna serve una scelta, in")
+    print(f"  {decisions_path}")
+    print()
+    print('  correggere → una voce in "operations"')
+    print('  lasciare   → una voce in "rejected" con il motivo')
+    print()
+    print("Niente e' stato scritto: il testo di narrazione resta quello di")
+    print("resolve-qc.")
+
+
+def write_approval(book, issues, qc_hash, source_text, text, rejected, applied):
+    """La prova che qualcuno ha deciso, legata a questo testo esatto."""
+
+    path = book / "work" / "language_qc_approval.json"
+
+    path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "qc_sha256": qc_hash,
+                "input_sha256": sha256(source_text),
+                "output_sha256": sha256(text),
+                "issues": len(issues),
+                "operations": len(applied),
+                "rejected": rejected,
+                "approved_at": datetime.now().astimezone().isoformat(
+                    timespec="seconds"
+                ),
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    return path
+
+
 def main():
     if len(sys.argv) != 2:
         raise SystemExit(
@@ -200,13 +308,23 @@ def main():
     text = source.read_text(encoding="utf-8")
     original = text
 
+    issues, qc_hash = load_issues(book)
+
     if not decisions_path.is_file():
+        pending = pending_issues(issues, text, {})
+
+        if pending:
+            report_pending(pending, decisions_path)
+            raise SystemExit(2)
+
         output.write_text(text, encoding="utf-8")
+        approval = write_approval(book, issues, qc_hash, original, text, {}, [])
 
         print()
         print("○ Nessuna decisione manuale")
-        print(f"  {decisions_path.name} assente: testo invariato.")
+        print(f"  {decisions_path.name} assente, e nessuna issue aperta.")
         print(f"Output: {output}")
+        print(f"Approvazione: {approval}")
         print()
         return
 
@@ -278,9 +396,19 @@ def main():
     if structural.get("token"):
         structural["occurrences"] = text.count(structural["token"])
 
+    rejected = decisions.get("rejected", {}) or {}
+
+    pending = pending_issues(issues, text, rejected)
+
+    if pending:
+        report_pending(pending, decisions_path)
+        raise SystemExit(2)
+
     output.write_text(text, encoding="utf-8")
 
-    rejected = decisions.get("rejected", {}) or {}
+    approval = write_approval(
+        book, issues, qc_hash, original, text, rejected, applied
+    )
 
     report.write_text(
         json.dumps(
@@ -315,6 +443,7 @@ def main():
 
     print(f"Output: {output}")
     print(f"Report: {report}")
+    print(f"Approvazione: {approval}")
     print()
 
 

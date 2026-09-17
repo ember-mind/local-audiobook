@@ -1087,6 +1087,25 @@ has_markers = bool(
 )
 print(f"  {'✓' if has_markers else '○'} narration.start_marker")
 
+approval_path = book / "work" / "language_qc_approval.json"
+reviewed = book / "text" / "narration_reviewed_it.txt"
+
+if approval_path.is_file() and reviewed.is_file():
+    approval = json.loads(approval_path.read_text(encoding="utf-8"))
+    current = hashlib.sha256(
+        reviewed.read_text(encoding="utf-8").encode("utf-8")
+    ).hexdigest()
+
+    if approval.get("output_sha256") == current:
+        print(
+            f"  ✓ QC approvato · {approval.get('issues', '?')} issue, "
+            f"{len(approval.get('rejected') or {})} respinte"
+        )
+    else:
+        print("  ⚠ QC approvato per un testo diverso: rifare apply-fixes")
+elif reviewed.is_file():
+    print("  ○ QC senza approvazione registrata")
+
 chapters = config.get("chapters") or []
 
 if chapters:

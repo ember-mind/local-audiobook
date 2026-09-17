@@ -10,6 +10,7 @@ correzioni: prima quelle sicure, poi le decisioni umane.
   `work/language_qc_safe_fixes.json` → `text/narration_final_it.txt`
 - `apply-fixes` — applica le decisioni umane di
   `work/language_qc_manual_fixes.json` → `text/narration_reviewed_it.txt`
+  + `work/language_qc_approval.json`
 
 ## How to get to it
 
@@ -26,8 +27,33 @@ Oppure, per fare resolve-qc + apply-fixes + layout in una volta:
 
     ./audiobook finish nome-libro
 
-Senza file di decisioni `apply-fixes` fa passare il testo invariato: un libro il cui
-QC non ha richiesto interventi attraversa comunque lo stadio.
+`apply-fixes` non scrive finché ogni issue del QC non ha una decisione. Una issue è
+chiusa quando la stringa contestata **non è più nel testo** — l'abbia sistemata una
+correzione sicura, una operazione manuale o una riscrittura della frase — oppure
+quando compare in `rejected` con un motivo. Le issue rimaste escono a schermo e lo
+stadio esce **2**, come il QC: serve una revisione, non è un errore.
+
+Un libro il cui QC non ha trovato niente attraversa lo stadio senza file di
+decisioni. Un libro con issue aperte no: prima quel file si chiamava "reviewed"
+anche quando nessuno aveva guardato niente.
+
+### L'approvazione
+
+`work/language_qc_approval.json` è la prova che la decisione c'è stata, legata a
+quel testo esatto:
+
+    {
+      "version": 1,
+      "qc_sha256": "…",          il verdetto a cui si riferisce
+      "input_sha256": "…",       narration_final_it.txt
+      "output_sha256": "…",      narration_reviewed_it.txt
+      "issues": 77,
+      "operations": 107,
+      "rejected": {"5": "perché"}
+    }
+
+`./audiobook info` confronta `output_sha256` con il testo sul disco: se il testo
+cambia, l'approvazione risulta obsoleta e va rifatto `apply-fixes`.
 
 ### Formato della whitelist sicura
 
@@ -79,7 +105,8 @@ Leggere il verdetto e il resoconto:
 
 - `scripts/language_qc.py` — chunking, chiamate LLM, retry, timeout, parsing JSON
 - `scripts/resolve_language_qc.py` — motore; la whitelist sta nei dati del libro
-- `scripts/apply_review_fixes.py` — motore generico; le correzioni stanno nei dati
+- `scripts/apply_review_fixes.py` — motore generico; le correzioni stanno nei dati,
+  e qui vive il controllo di copertura delle issue
 - `audiobook` — `language_qc_book`, `resolve_qc_book`, `apply_fixes_book`, `finish_book`
 - `books/dressed-a-century-of-hollywood-costume-design-landis-deborah-nadoolman/work/language_qc.json`
   — esempio di verdetto reale
