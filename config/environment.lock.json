@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "pandrator": {
+    "home": "/Users/ebuccelli/src/Pandrator",
+    "revision": "fa51f34673ed14c4878c99294cda49610058744a",
+    "describe": "v.0.8.11",
+    "python": "3.12.13"
+  },
+  "qwen": {
+    "python": "3.12.14",
+    "qwen-tts": "0.1.1",
+    "torch": "2.13.0",
+    "torchaudio": "2.11.0",
+    "transformers": "4.57.3",
+    "fastapi": "0.141.1",
+    "uvicorn": "0.52.3",
+    "soundfile": "0.14.0",
+    "numpy": "2.5.2"
+  },
+  "roomtone_patch_sha256": "f43d433f4457e71beac27fc3ac4b10f04b3d8ec23bf3a61fc8433338071889d7",
+  "recorded_at": "2026-09-17T15:53:59+02:00"
+}

@@ -60,3 +60,42 @@ class SetupTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EnvironmentLockTests(unittest.TestCase):
+    """The lock records what works; drift is reported, never applied silently."""
+
+    def setUp(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+        import environment_lock
+
+        self.lock = environment_lock
+
+    def test_identical_snapshots_show_no_drift(self):
+        snapshot = {"pandrator": {"revision": "abc", "home": "/somewhere"},
+                    "qwen": {"qwen-tts": "0.1.1"}}
+
+        self.assertEqual(self.lock.differences(snapshot, dict(snapshot)), [])
+
+    def test_a_changed_version_is_reported_with_both_values(self):
+        locked = {"pandrator": {"revision": "abc"}, "qwen": {"qwen-tts": "0.1.1"}}
+        current = {"pandrator": {"revision": "def"}, "qwen": {"qwen-tts": "0.2.0"}}
+
+        self.assertEqual(
+            sorted(self.lock.differences(locked, current)),
+            [("pandrator.revision", "abc", "def"), ("qwen.qwen-tts", "0.1.1", "0.2.0")],
+        )
+
+    def test_the_install_path_is_not_part_of_the_comparison(self):
+        locked = {"pandrator": {"home": "/one", "revision": "abc"}}
+        current = {"pandrator": {"home": "/another", "revision": "abc"}}
+
+        self.assertEqual(self.lock.differences(locked, current), [])
+
+    def test_a_missing_package_counts_as_drift(self):
+        locked = {"qwen": {"torch": "2.13.0"}}
+
+        self.assertEqual(
+            self.lock.differences(locked, {"qwen": {}}),
+            [("qwen.torch", "2.13.0", None)],
+        )

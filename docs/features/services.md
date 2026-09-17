@@ -46,13 +46,34 @@ Controlli senza CLI, per un agente che non vuole aprire il browser:
 
 - `audiobook` — funzioni `start_qwen`, `start_server`, `start_worker`, `stop_pid`, `show_status`
 - `qwen/qwen_pandrator_server.py` — adapter FastAPI, endpoint OpenAI-like su :8042
+- `scripts/environment_lock.py` — snapshot e confronto di `config/environment.lock.json`
 - `launchd/local.audiobook.qwen.plist.template` — il LaunchAgent, con i path
   sostituiti all'installazione (launchd non espande variabili)
 - `run/` — pidfile (`qwen.pid`, `pandrator-server.pid`, `pandrator-worker.pid`)
 - `logs/` — `qwen.log`, `pandrator-server.log`, `pandrator-worker.log`
 - `setup.sh` — ricostruisce le virtualenv se una si rompe
 
+## L'ambiente fissato
+
+`config/environment.lock.json` registra le versioni con cui la pipeline funziona
+davvero: revisione di Pandrator, pacchetti del venv Qwen (qwen-tts, torch,
+transformers…), python dei due ambienti e hash della patch del room tone.
+
+    ./audiobook lock            # scrive il lock leggendo la macchina di adesso
+    ./audiobook lock --check    # confronta, esce 1 se qualcosa è cambiato
+
+`doctor` fa quel confronto a ogni giro e lo segnala senza bloccare. `setup.sh` su
+un clone nuovo fa il checkout della revisione fissata e installa `qwen-tts` alla
+versione del lock, invece di prendere l'ultima.
+
+Aggiornare è una scelta esplicita: si aggiorna, si prova su un libro piccolo, poi
+si rifà `./audiobook lock`. Il lock non aggiorna e non allinea niente da solo.
+
 ## Gotchas
+
+- **Il lock non è un vincolo su un ambiente già installato.** Su un Pandrator che
+  esiste già `setup.sh` dice soltanto che la revisione è diversa: un checkout
+  automatico butterebbe via la patch del room tone applicata a quel codice.
 
 - `setup.sh` usa l'adapter direttamente dal repository e verifica audio e
   trascrizione dichiarati in `config/voice.json` (override:

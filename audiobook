@@ -530,6 +530,11 @@ run_doctor() {
     errors=$((errors + 1))
   }
 
+  # Da sapere, non da bloccare: il doctor resta verde.
+  warn() {
+    echo "○ $*"
+  }
+
   echo
   echo "Local Audiobook Doctor"
   echo "──────────────────────"
@@ -652,6 +657,16 @@ PYR
     ok "Patch di backup salvata"
   else
     fail "Patch di backup mancante o vuota"
+  fi
+
+  if [ -f "$ROOT/config/environment.lock.json" ]; then
+    if python3 "$ROOT/scripts/environment_lock.py" --check >/dev/null 2>&1; then
+      ok "Ambiente come da environment.lock.json"
+    else
+      warn "Ambiente diverso dal lock · ./audiobook lock --check"
+    fi
+  else
+    warn "Nessun environment.lock.json · ./audiobook lock"
   fi
 
   if [ -s "$PANDRATOR_TOKEN" ]; then
@@ -1809,6 +1824,10 @@ case "${1:-}" in
     open "http://127.0.0.1:8097/"
     ;;
 
+  lock)
+    python3 "$ROOT/scripts/environment_lock.py" "${2:-}"
+    ;;
+
   roomtone)
     roomtone "${2:-status}"
     ;;
@@ -1880,6 +1899,8 @@ Voce:
 
 Room tone:
 
+  ./audiobook lock
+  ./audiobook lock --check
   ./audiobook roomtone status
   ./audiobook roomtone -58
   ./audiobook roomtone on

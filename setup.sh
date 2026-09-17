@@ -24,10 +24,43 @@ uv python install 3.12
 # Pandrator
 #
 
+# Le versioni con cui la pipeline funziona davvero: config/environment.lock.json,
+# scritto da ./audiobook lock. Senza lock si prende l'ultimo commit, che e' come
+# funzionava prima — e nessuno puo' sapere cosa arrivera'.
+LOCKED_REVISION=""
+LOCKED_QWEN=""
+
+if [ -f "$ROOT/config/environment.lock.json" ]; then
+  LOCKED_REVISION="$(python3 -c '
+import json, sys
+lock = json.load(open(sys.argv[1]))
+print(lock.get("pandrator", {}).get("revision") or "")
+' "$ROOT/config/environment.lock.json")"
+
+  LOCKED_QWEN="$(python3 -c '
+import json, sys
+lock = json.load(open(sys.argv[1]))
+print(lock.get("qwen", {}).get("qwen-tts") or "")
+' "$ROOT/config/environment.lock.json")"
+fi
+
 if [ ! -d "$PANDRATOR_HOME/.git" ]; then
   echo "→ Clono Pandrator..."
   mkdir -p "$(dirname "$PANDRATOR_HOME")"
   git clone https://github.com/lukaszliniewicz/Pandrator.git "$PANDRATOR_HOME"
+
+  if [ -n "$LOCKED_REVISION" ]; then
+    echo "→ Revisione fissata: $LOCKED_REVISION"
+    git -C "$PANDRATOR_HOME" checkout --quiet "$LOCKED_REVISION"
+  fi
+elif [ -n "$LOCKED_REVISION" ] && [ -d "$PANDRATOR_HOME/.git" ]; then
+  current="$(git -C "$PANDRATOR_HOME" rev-parse HEAD 2>/dev/null || echo sconosciuta)"
+
+  if [ "$current" != "$LOCKED_REVISION" ]; then
+    # Un checkout qui butterebbe via la patch del room tone applicata a mano.
+    echo "○ Pandrator e' su $current, il lock dice $LOCKED_REVISION"
+    echo "  Allinearlo a mano, e ricordarsi della patch del room tone."
+  fi
 fi
 
 if [ ! -x "$PANDRATOR_HOME/.venv/bin/python" ]; then
@@ -56,7 +89,12 @@ if [ ! -x "$QWEN_HOME/.venv/bin/python" ]; then
   (
     cd "$QWEN_HOME"
     uv venv --python 3.12 .venv
-    uv pip install --python .venv/bin/python -U qwen-tts
+    if [ -n "$LOCKED_QWEN" ]; then
+      echo "→ qwen-tts==$LOCKED_QWEN (da environment.lock.json)"
+      uv pip install --python .venv/bin/python "qwen-tts==$LOCKED_QWEN"
+    else
+      uv pip install --python .venv/bin/python -U qwen-tts
+    fi
   )
 else
   echo "✓ Ambiente Qwen esistente"
