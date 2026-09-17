@@ -8,6 +8,8 @@ import uuid
 
 import requests
 
+from pandrator_state import PandratorAPIError, save_json, sha256_file
+
 
 ROOT = Path(__file__).resolve().parent.parent
 API = "http://127.0.0.1:8097/api/v1"
@@ -36,7 +38,8 @@ def api(method, path, **kwargs):
     )
 
     if not response.ok:
-        raise RuntimeError(
+        raise PandratorAPIError(
+            response.status_code,
             f"{method} {path} → HTTP {response.status_code}\n"
             + response.text[:3000]
         )
@@ -48,16 +51,7 @@ def api(method, path, **kwargs):
 
 
 def save(path, data):
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    path.write_text(
-        json.dumps(
-            data,
-            indent=2,
-            ensure_ascii=False,
-        ) + "\n",
-        encoding="utf-8",
-    )
+    save_json(path, data)
 
 
 def qwen_ready():
@@ -161,8 +155,12 @@ def segments(session_id):
 
     collected = []
     cursor = 0
+    visited = set()
 
     while True:
+        if str(cursor) in visited:
+            raise RuntimeError("Pandrator ha ripetuto un cursore dei segmenti.")
+        visited.add(str(cursor))
         page = api(
             "GET",
             f"/sessions/{session_id}/generation-segments"
@@ -172,10 +170,12 @@ def segments(session_id):
         items = page.get("items") or []
         collected.extend(items)
 
-        total = page.get("total") or 0
+        total = page.get("total")
         cursor = page.get("next_cursor")
 
-        if not items or not cursor or len(collected) >= total:
+        if not items or not cursor:
+            return collected
+        if isinstance(total, int) and total > 0 and len(collected) >= total:
             return collected
 
 
@@ -239,57 +239,33 @@ def main():
             "con max_sentence_length=600."
         )
 
-    if not qwen_ready():
+    source = book / "text" / "narration_ready_it.txt"
+    if not source.is_file() or state.get("prepared_sha256") != sha256_file(source):
         raise SystemExit(
-            "Qwen3-TTS non è pronto su :8042.\n"
-            "Eseguire prima: ./audiobook start"
+            "Testo non preparato o cambiato dall'ultima segmentazione.\n"
+            f"Eseguire prima: ./audiobook prepare-audio {slug}"
         )
 
-    # Se abbiamo già un job attivo, non crearne uno doppio.
+    # Catch only an absent historical job. Authentication, server, network and
+    # monitoring errors must propagate, never trigger another generation.
     existing_job = state.get("generation_job_id")
-
     if existing_job:
         try:
-            job = api(
-                "GET",
-                f"/jobs/{existing_job}",
-            )
+            job = api("GET", f"/jobs/{existing_job}")
+        except PandratorAPIError as error:
+            if error.status_code != 404:
+                raise
+            job = {}
 
-            status = str(job.get("status") or "")
+        status = str(job.get("status") or "")
+        if status in {"queued", "running"}:
+            print(f"✓ Generazione già attiva · {existing_job}")
+            print("→ Riprendo il monitoraggio")
+            wait_job(existing_job, state_path, state)
+            return
 
-            if status in {"queued", "running"}:
-                print()
-                print(
-                    "✓ Generazione già attiva"
-                )
-                print(
-                    f"Job: {existing_job}"
-                )
-                print()
-                print("→ Riprendo il monitoraggio")
-
-                wait_job(
-                    existing_job,
-                    state_path,
-                    state,
-                )
-                return
-
-            if status in {
-                "completed",
-                "succeeded",
-            }:
-                print()
-                print(
-                    "✓ La generazione risulta già completata."
-                )
-                print(
-                    f"Job: {existing_job}"
-                )
-                return
-
-        except Exception:
-            pass
+        # A completed historical job does not prove current segments are done.
+        # Always inspect the current segment state below.
 
     settings = {
         # Pandrator first-class Qwen service
@@ -331,7 +307,10 @@ def main():
     # morire. Rilanciare lo stage da capo li rigenererebbe tutti: su un libro
     # sono ore buttate. Se c'e' del lavoro fatto, si chiede una run mirata
     # sui soli segmenti mancanti.
-    pending, total = pending_segment_ids(session_id)
+    if state.get("generation_requires_fresh_run"):
+        pending, total = [], 0
+    else:
+        pending, total = pending_segment_ids(session_id)
 
     if total and not pending:
         print()
@@ -339,6 +318,12 @@ def main():
         print(f"  Prossimo passo → ./audiobook export {slug}")
         print()
         return
+
+    if not qwen_ready():
+        raise SystemExit(
+            "Qwen3-TTS non è pronto su :8042.\n"
+            "Eseguire prima: ./audiobook start"
+        )
 
     done = total - len(pending)
     resuming = bool(done)
@@ -387,7 +372,9 @@ def main():
         job_id = job["id"]
 
     state["generation_job_id"] = job_id
-    state["generation_settings"] = settings
+    state["generation_requires_fresh_run"] = False
+    if not resuming:
+        state["generation_settings"] = settings
 
     save(state_path, state)
 
