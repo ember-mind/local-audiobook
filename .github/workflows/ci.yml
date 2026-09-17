@@ -10,28 +10,32 @@ permissions:
 
 jobs:
   offline:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: '3.12'
+          - os: macos-latest
+            python: '3.12'
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Test dependencies (no models)
+        run: python3 -m pip install 'requests>=2.32,<3'
       - name: Shell syntax
-        run: bash -n audiobook setup.sh
+        run: |
+          bash -n audiobook
+          bash -n setup.sh
       - name: Python syntax
         run: python3 -m compileall -q scripts qwen tests
       - name: Feature map
         run: python3 tests/feature_map_check.py
       - name: Regression tests
-        run: |
-          python3 -m pip install requests
-          python3 -m unittest discover -s tests -p 'test_*.py' -v
-      - name: Review source snapshot
-        if: always() && github.ref == 'refs/heads/review/reliability-2026-09-17'
-        run: git archive --format=tar.gz -o review-source.tar.gz HEAD
-      - uses: actions/upload-artifact@v4
-        if: always() && github.ref == 'refs/heads/review/reliability-2026-09-17'
-        with:
-          name: review-source
-          path: review-source.tar.gz
-          retention-days: 1
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
