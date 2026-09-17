@@ -333,10 +333,9 @@ Translate the following text:
     data = response.json()
 
     try:
-        result = (
-            data["choices"][0]["message"]["content"].strip()
-        )
-    except (KeyError, IndexError, AttributeError):
+        choice = data["choices"][0]
+        result = choice["message"]["content"].strip()
+    except (KeyError, IndexError, AttributeError, TypeError):
         raise RuntimeError(
             "Risposta inattesa da llama.cpp:\n"
             + json.dumps(
@@ -349,6 +348,16 @@ Translate the following text:
     if not result:
         raise RuntimeError(
             "llama.cpp ha restituito una traduzione vuota."
+        )
+
+    # Never persist a token-limited or otherwise interrupted completion as
+    # finished work. A non-empty response is not proof of a full translation.
+    if choice.get("finish_reason") != "stop":
+        raise RuntimeError(
+            "Traduzione non completata: finish_reason="
+            f"{choice.get('finish_reason')!r}. "
+            "Il chunk non è stato salvato. Verificare il limite di output "
+            "e la finestra di contesto di llama.cpp prima di riprovare."
         )
 
     return result
@@ -457,7 +466,8 @@ def main():
     source_hash = sha256(source_text)
 
     checkpoint_data = {
-        "version": 2,
+        "version": 3,
+        "system_prompt_sha256": sha256(SYSTEM_PROMPT),
         "source_sha256": source_hash,
         "server_model": server_model,
         "chunk_chars": chunk_size,
@@ -470,6 +480,8 @@ def main():
         )
 
         critical = (
+            "version",
+            "system_prompt_sha256",
             "source_sha256",
             "server_model",
             "chunk_chars",
@@ -481,7 +493,10 @@ def main():
             for key in critical
         ):
             raise SystemExit(
-                "Sorgente o configurazione cambiati.\n"
+                "Sorgente, prompt o configurazione cambiati, oppure checkpoint "
+                "precedente alla versione 3 (prompt non verificabile).\n"
+                "I chunk esistenti non sono stati modificati. Archiviali prima "
+                "di ricominciare; --reset elimina il checkpoint e ritraduce.\n"
                 "Per ricominciare usa:\n"
                 f"  ./audiobook translate {book.name} --reset"
             )
