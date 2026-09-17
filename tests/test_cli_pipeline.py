@@ -13,7 +13,9 @@ STAGES = ["extract_book.py", "clean_book.py", "translate_book.py",
           "build_narration.py", "language_qc.py"]
 
 
-class PipelineTests(unittest.TestCase):
+class PipelineFixture(unittest.TestCase):
+    """CLI vera, stadi finti: solo fixture, nessun test."""
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -51,6 +53,8 @@ echo "stage completed: $name"
     def called(self):
         return self.calls.read_text().splitlines() if self.calls.exists() else []
 
+
+class PipelineTests(PipelineFixture):
     def test_every_stage_failure_stops_the_pipeline(self):
         for index, stage in enumerate(STAGES):
             with self.subTest(stage=stage):
@@ -85,3 +89,36 @@ echo "stage completed: $name"
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BookLockTests(PipelineFixture):
+    """Un comando per libro: il secondo si ferma invece di sovrascrivere."""
+
+    def lock_dir(self):
+        return self.root / "books/demo/work/.lock"
+
+    def hold_lock(self, pid):
+        lock = self.lock_dir()
+        lock.mkdir(parents=True)
+        (lock / "owner").write_text(f"{pid}\nnarrate\n", encoding="utf-8")
+
+    def test_a_live_owner_stops_the_second_command(self):
+        self.hold_lock(os.getpid())
+
+        result = self.prepare()
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("sta lavorando", result.stdout + result.stderr)
+        self.assertEqual(self.called(), [])
+
+    def test_a_dead_owner_does_not_block_forever(self):
+        self.hold_lock(999999)
+
+        result = self.prepare()
+
+        self.assertIn("processo terminato", result.stdout)
+        self.assertEqual(self.called(), STAGES)
+
+    def test_the_lock_is_released_when_the_command_ends(self):
+        self.assertEqual(self.prepare().returncode, 0)
+        self.assertFalse(self.lock_dir().exists())

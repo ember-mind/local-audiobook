@@ -63,6 +63,13 @@ Alberatura creata:
 
 ## Gotchas
 
+- **Un comando per libro alla volta.** Ogni stadio prende `books/<slug>/work/.lock`
+  (una directory, quindi la presa è atomica) e lo lascia uscendo, anche su Ctrl-C.
+  Un secondo comando sullo stesso libro si ferma dicendo chi sta lavorando; un lock
+  rimasto da un processo morto viene riconosciuto e rimosso. Stadi concatenati nello
+  stesso processo (`generate` → `prepare-audio`, `export` → `chapters`) riusano il
+  lock che hanno già.
+
 - **`info` distingue "fatto" da "da rifare".** Dove lo stadio ha annotato lo sha256
   del proprio input — `language-qc` e `prepare-audio` lo fanno — il confronto è sui
   contenuti ed è esatto. Per gli altri resta la mtime, che è grossolana: rifare uno

@@ -1215,6 +1215,8 @@ run_stage() {
 
   config="$(book_config "$slug" "$command")" || return $?
 
+  acquire_book_lock "$slug" "$command"
+
   echo
   echo "$label · $slug"
   echo "────────────────────────"
@@ -1320,6 +1322,56 @@ require_token() {
 
 
 # run_audio_stage <script> <label> <command> <slug>
+# Due comandi sullo stesso libro si sovrascriverebbero session.json a vicenda:
+# uno legge lo stato, l'altro lo riscrive, il primo salva quello vecchio e il
+# job dell'altro sparisce. mkdir e' atomico anche su filesystem di rete, quindi
+# basta lui: niente flock, che su macOS non c'e'.
+LOCK_DIR=""
+
+acquire_book_lock() {
+  local slug command lock holder
+  slug="$1"
+  command="$2"
+  lock="$ROOT/books/$slug/work/.lock"
+
+  mkdir -p "$(dirname "$lock")"
+
+  if mkdir "$lock" 2>/dev/null; then
+    printf '%s\n%s\n' "$$" "$command" > "$lock/owner"
+    LOCK_DIR="$lock"
+    trap release_book_lock EXIT INT TERM
+    return 0
+  fi
+
+  holder="$(head -1 "$lock/owner" 2>/dev/null || true)"
+
+  # Lo stesso processo che passa da piu' stadi (generate chiama prepare-audio,
+  # export chiama chapters) tiene il lock che ha gia' preso.
+  if [ "$holder" = "$$" ]; then
+    return 0
+  fi
+
+  # Un lock rimasto da un processo morto non deve bloccare per sempre.
+  if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then
+    echo "○ Lock di un processo terminato ($holder): lo rimuovo"
+    rm -rf "$lock"
+    acquire_book_lock "$slug" "$command"
+    return $?
+  fi
+
+  die "Un altro comando sta lavorando su '$slug' (pid ${holder:-?}, $(tail -1 "$lock/owner" 2>/dev/null || echo ignoto)).
+Aspettare che finisca, oppure rimuovere $lock se quel processo non esiste piu'."
+}
+
+
+release_book_lock() {
+  if [ -n "$LOCK_DIR" ]; then
+    rm -rf "$LOCK_DIR"
+    LOCK_DIR=""
+  fi
+}
+
+
 run_audio_stage() {
   script="$1"
   label="$2"
@@ -1333,6 +1385,7 @@ run_audio_stage() {
     die "Libro non trovato: $slug"
 
   require_token
+  acquire_book_lock "$slug" "$command"
 
   echo
   echo "$label · $slug"
