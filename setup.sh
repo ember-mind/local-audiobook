@@ -66,13 +66,33 @@ fi
 # Nostro adapter + voce
 #
 
-echo "→ Installo configurazione Qwen..."
+# The CLI and launchd run the adapter directly from this repository. A copy
+# in QWEN_HOME would resolve config/voice.json relative to the wrong directory.
+echo "→ Verifico la voce configurata..."
 
-cp "$ROOT/qwen/qwen_pandrator_server.py" \
-   "$QWEN_HOME/qwen_pandrator_server.py"
+"$QWEN_HOME/.venv/bin/python" - "$ROOT" <<'PYVOICE'
+import json
+import os
+import sys
+from pathlib import Path
 
-cp "$ROOT/qwen/reference_it.wav" \
-   "$QWEN_HOME/reference_it.wav"
+root = Path(sys.argv[1])
+config_path = Path(os.environ.get("AUDIOBOOK_VOICE_CONFIG", root / "config/voice.json"))
+if not config_path.is_file():
+    raise SystemExit(f"Configurazione voce non trovata: {config_path}")
+config = json.loads(config_path.read_text(encoding="utf-8"))
+reference_dir = Path(config.get("reference_dir", "qwen/reference-bank/harry"))
+if not reference_dir.is_absolute():
+    reference_dir = root / reference_dir
+for key, default in (("reference_audio", "reference_it_v2.wav"),
+                     ("reference_text", "reference_it_v2.txt")):
+    path = reference_dir / config.get(key, default)
+    if not path.is_file() or not path.stat().st_size:
+        raise SystemExit(f"File voce mancante o vuoto: {path}")
+    if key == "reference_text" and not path.read_text(encoding="utf-8").strip():
+        raise SystemExit(f"Trascrizione voce vuota: {path}")
+    print(f"✓ {path}")
+PYVOICE
 
 #
 # Room tone

@@ -1151,6 +1151,7 @@ PYBOOKS
 # Pandrator. Catena completa e ordine: docs/features/.
 
 book_config() {
+  local slug command config
   slug="${1:-}"
   command="${2:-info}"
 
@@ -1168,6 +1169,7 @@ book_config() {
 
 # run_stage <script> <label> <command> <slug> [args...]
 run_stage() {
+  local script label command slug config
   script="$1"
   label="$2"
   command="$3"
@@ -1175,7 +1177,7 @@ run_stage() {
 
   shift 4 || true
 
-  config="$(book_config "$slug" "$command")"
+  config="$(book_config "$slug" "$command")" || return $?
 
   echo
   echo "$label · $slug"
@@ -1215,9 +1217,10 @@ validate_translation() {
 
 
 finalize_translation() {
+  local slug
   slug="${1:-}"
 
-  run_stage finalize_translation.py "Finalize" finalize "$slug"
+  run_stage finalize_translation.py "Finalize" finalize "$slug" || return $?
 
   echo
   echo "→ Validation"
@@ -1255,7 +1258,7 @@ apply_fixes_book() {
 layout_book() {
   slug="${1:-}"
 
-  run_stage clean_layout.py "Clean layout" layout "$slug"
+  run_stage clean_layout.py "Clean layout" layout "$slug" || return $?
   run_stage finalize_layout.py "Finalize layout" layout "$slug"
 }
 
@@ -1314,7 +1317,7 @@ prepare_audio_book() {
 generate_audio_book() {
   slug="${1:-}"
 
-  prepare_audio_book "$slug"
+  prepare_audio_book "$slug" || return $?
 
   run_audio_stage pandrator_generate_audio.py "Generate" generate "$slug"
 }
@@ -1329,7 +1332,7 @@ export_book() {
 
   config="$(book_config "$slug" export)"
 
-  run_audio_stage export_m4b.py "Export" export "$slug"
+  run_audio_stage export_m4b.py "Export" export "$slug" || return $?
 
   if ! has_chapters "$config"; then
     printf '\n'
@@ -1410,6 +1413,7 @@ ui_line() {
 }
 
 ui_step() {
+  local number label state
   number="$1"
   label="$2"
   state="${3:-○}"
@@ -1469,6 +1473,7 @@ ui_translate() {
 # propaga l'exit code invariato: gli stadi usano codici diversi da 1
 # per dire cose diverse (2 = serve una revisione umana).
 ui_run_step() {
+  local number label runner target slug status
   number="$1"
   label="$2"
   runner="$3"
@@ -1480,13 +1485,13 @@ ui_run_step() {
   if "$runner" "$target" "$slug"; then
     printf '  %s  %-11s ✓\n' "$number" "$label"
     return 0
+  else
+    # Capture the runner status here: a false `if` without an `else`
+    # itself returns 0, which would hide the failed stage.
+    status=$?
+    printf '  %s  %-11s ✕\n' "$number" "$label"
+    return "$status"
   fi
-
-  status=$?
-
-  printf '  %s  %-11s ✕\n' "$number" "$label"
-
-  return "$status"
 }
 
 
