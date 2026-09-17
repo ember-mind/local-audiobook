@@ -9,18 +9,13 @@ import uuid
 
 import requests
 
+from pandrator_state import (PandratorAPIError, invalidate_generation, save_json,
+                             sha256_file)
+
 
 ROOT = Path(__file__).resolve().parent.parent
 API = "http://127.0.0.1:8097/api/v1"
 TOKEN_FILE = ROOT / ".secrets" / "pandrator-token"
-
-
-def sha256_file(path):
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(1024 * 1024), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 def headers(write=False):
@@ -44,7 +39,8 @@ def api(method, path, **kwargs):
     )
 
     if not response.ok:
-        raise RuntimeError(
+        raise PandratorAPIError(
+            response.status_code,
             f"{method} {path} → HTTP {response.status_code}\n"
             + response.text[:2000]
         )
@@ -56,11 +52,7 @@ def api(method, path, **kwargs):
 
 
 def save_state(path, state):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(state, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    save_json(path, state)
 
 
 def ensure_session(title, state):
@@ -71,7 +63,9 @@ def ensure_session(title, state):
             api("GET", f"/sessions/{session_id}")
             print(f"✓ Sessione esistente · {session_id}")
             return session_id
-        except RuntimeError:
+        except PandratorAPIError as error:
+            if error.status_code != 404:
+                raise
             print("○ Sessione precedente non trovata")
 
     result = api(
@@ -93,6 +87,9 @@ def ensure_session(title, state):
     )
 
     session_id = result["id"]
+    # Every artifact and job in this file belongs to the previous session.
+    # Reset only after creation succeeded; a failed POST must preserve state.
+    state.clear()
     state["session_id"] = session_id
 
     print(f"✓ Sessione creata · {session_id}")
@@ -287,13 +284,36 @@ def main():
         print(f"Sessione: {session_id}")
         return
 
+    # Replacing source/segments underneath a live generation risks mixing
+    # versions. A lookup failure is not proof that the old job has stopped.
+    previous_job = state.get("generation_job_id")
+    if previous_job:
+        try:
+            job = api("GET", f"/jobs/{previous_job}")
+        except PandratorAPIError as error:
+            if error.status_code != 404:
+                raise
+        else:
+            if str(job.get("status")) in {"queued", "running"}:
+                raise SystemExit(
+                    "Generazione ancora attiva: attendere o annullare il job "
+                    "in Pandrator prima di eseguire prepare-audio con nuovi input."
+                )
+
+    # Persist invalidation before changing remote artifacts. If preparation
+    # fails halfway through, a later generate must not use the old job/hash.
+    state.pop("prepared_sha256", None)
+    state.pop("prepared_fingerprint", None)
+    state.pop("max_sentence_length", None)
+    invalidate_generation(state)
+    # The server may still expose completed segments from the previous run.
+    # They must not be mistaken for audio of the newly prepared text.
+    state["generation_requires_fresh_run"] = True
+    save_state(state_path, state)
+
     if state.get("source_sha256") != source_hash:
         upload_source(session_id, source)
-
         state["source_sha256"] = source_hash
-        state.pop("prepared_sha256", None)
-        state.pop("prepared_fingerprint", None)
-
         save_state(state_path, state)
 
     # Il testo è già stato pulito e validato da local-audiobook.

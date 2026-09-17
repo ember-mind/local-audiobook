@@ -15,6 +15,8 @@ import uuid
 
 import requests
 
+from pandrator_state import save_json, sha256_file
+
 
 ROOT = Path(__file__).resolve().parent.parent
 API = "http://127.0.0.1:8097/api/v1"
@@ -61,11 +63,7 @@ def api(method, path, **kwargs):
 
 
 def save(path, state):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(state, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    save_json(path, state)
 
 
 def stages(session_id):
@@ -125,7 +123,7 @@ def wait_job(job_id, label):
 def upload_cover(session_id, cover, state, state_path):
     """Carica la cover una volta sola e ricorda l'artifact id."""
 
-    signature = f"{cover.name}:{cover.stat().st_size}"
+    signature = f"{session_id}:{cover.name}:{sha256_file(cover)}"
 
     if (
         state.get("cover_signature") == signature
