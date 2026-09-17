@@ -49,6 +49,13 @@ Vedere se l'audio a monte è pronto:
 
 ## Gotchas
 
+- La cache della cover dipende da sessione, nome e hash SHA-256 dei contenuti:
+  sostituire un'immagine con un'altra della stessa dimensione forza l'upload.
+  Le firme legacy provocano un solo nuovo upload, non sono adottate alla cieca.
+- Lo stato JSON viene scritto atomicamente tramite `scripts/pandrator_state.py`.
+  Non è un lock: evitare export concorrenti sullo stesso libro. Le scritture fallite
+  e le firme della cover sono verificate da `tests/test_audio_persistence.py`.
+
 - **Rifiuta di partire se `generate_audio` non è `completed`**, e dice in che stato è.
   È una guardia: senza segmenti non c'è niente da assemblare.
 - **Saltare l'assembly non dà un errore comprensibile.** Lo stage `export` da solo

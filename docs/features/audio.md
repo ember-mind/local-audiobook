@@ -47,6 +47,8 @@ Stato della sessione senza rilanciare niente:
 
 ## Where it lives
 
+- `scripts/pandrator_state.py` — errori HTTP tipizzati, hash e scritture JSON atomiche
+
 - `scripts/pandrator_prepare_audio.py`
 - `scripts/pandrator_generate_audio.py`
 - `scripts/qwen_sample.py`
@@ -56,6 +58,24 @@ Stato della sessione senza rilanciare niente:
 - `.secrets/` — token, mai committato
 
 ## Gotchas
+
+- Una sessione viene ricreata **solo su HTTP 404**, non su errori di autenticazione,
+  rate limit o server. La nuova sessione non eredita hash, job o artefatti di quella
+  precedente. Prima di risegmentare vengono invalidati i riferimenti downstream;
+  una generazione ancora attiva impedisce di sostituirne il testo. Una preparazione
+  nuova richiede una run TTS nuova: i segmenti ancora esposti da una vecchia run
+  non possono far risultare già letto il testo nuovo.
+- Un job storico completato non basta per dichiarare concluso il lavoro:
+  `generate` verifica i segmenti correnti. Errori durante il recupero del job o
+  il monitoraggio sono propagati senza avviare una generazione duplicata.
+- Anche invocato direttamente, lo script di generazione controlla l'hash del testo
+  preparato. Se manca o differisce, richiede `prepare-audio`. Un lavoro già completo
+  o il solo monitoraggio di un job attivo non richiedono Qwen acceso.
+- `session.json` viene sostituito atomicamente con un temporaneo univoco. Questo
+  evita JSON troncato durante una scrittura, **non** fornisce un lock fra due processi:
+  non lanciare contemporaneamente due comandi mutanti sullo stesso libro.
+- `tests/test_audio_recovery.py` copre recupero 404, errori HTTP, ripreparazione,
+  job obsoleti, interruzioni del monitoraggio e paginazione senza modelli reali.
 
 - **Una generazione lunga è già fallita una volta, e non si sa perché.** Il job del
   2026-09-01 è morto al segmento 3154 di 3763 — dopo ~10h45m e l'84% del libro — con
@@ -88,8 +108,9 @@ Stato della sessione senza rilanciare niente:
   ne creerebbe una seconda.
 - Se un job è già in coda o in esecuzione, `generate` **non** ne crea un secondo:
   riprende il monitoraggio. Rilanciarlo dopo un Ctrl-C è sicuro.
-- Le scritture usano un header `Idempotency-Key` nuovo a ogni chiamata: un retry
-  interno è protetto, un rilancio manuale dello script no.
+- Le scritture usano un header `Idempotency-Key` nuovo a ogni chiamata: non c'è
+  ancora un'identità persistente dell'operazione fra rilanci. Un'interruzione fra
+  accettazione del POST e salvataggio del job locale resta un caso da gestire.
 - `prepare-audio` è idempotente su un'impronta di testo + impostazioni: se non è
   cambiato niente non risegmenta, e lo dice.
 - **Le pause non si configurano per libro.** `sentence_silence_ms` (250) e
