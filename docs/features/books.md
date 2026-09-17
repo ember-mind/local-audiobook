@@ -74,7 +74,9 @@ Alberatura creata:
   del proprio input — `language-qc` e `prepare-audio` lo fanno — il confronto è sui
   contenuti ed è esatto. Per gli altri resta la mtime, che è grossolana: rifare uno
   stadio senza cambiare niente sposta la data e può far comparire un `⚠` innocuo.
-  L'hash vince quando c'è, proprio per non gridare al lupo.
+  L'hash vince quando c'è, proprio per non gridare al lupo. Lo registrano
+  `language-qc`, `prepare-audio` e — da quando esiste `export_sha256` — anche
+  `export`.
 - `prune` lavora su una **allowlist**: audio di prova, esperimenti di chunking, run
   di QC archiviate. Tutto il resto è intoccabile per costruzione — il checkpoint di
   traduzione (ore di LLM), la cache del QC, la sessione Pandrator. Aggiungendo una

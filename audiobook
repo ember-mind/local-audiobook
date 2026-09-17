@@ -1029,6 +1029,13 @@ HASH_CHECKS = {
         ("prepared_sha256", "source_sha256"),
         book / "text" / "narration_ready_it.txt",
     ),
+    # L'export registra l'impronta del file che ha scaricato: se combacia,
+    # una data piu' vecchia di prepare-audio non vuol dire niente.
+    "export": (
+        book / "work" / "pandrator" / "session.json",
+        ("export_sha256",),
+        book / "output" / f"{book.name}.{str((config.get('output') or {}).get('format') or 'm4b').lower()}",
+    ),
 }
 
 previous_label = None
